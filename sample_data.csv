@@ -1,0 +1,11 @@
+name,department,salary,location,status
+John Doe,Engineering,75000,New York,Active
+Jane Smith,Marketing,65000,Los Angeles,Active
+Bob Johnson,Engineering,80000,New York,Inactive
+Alice Brown,HR,55000,Chicago,Active
+Charlie Wilson,Marketing,70000,Los Angeles,Active
+David Lee,Engineering,85000,San Francisco,Active
+Sarah Davis,HR,60000,Chicago,Inactive
+Michael Chen,Engineering,90000,San Francisco,Active
+Lisa Wang,Marketing,68000,New York,Active
+Tom Rodriguez,HR,58000,Chicago,Active
