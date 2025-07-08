@@ -1,0 +1,69 @@
+.table-container {
+    max-height: 400px;
+    /* Adjust to show ~10 rows */
+    overflow-y: auto;
+    border: 1px solid #ddd;
+}
+
+.fixed-header {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.fixed-header th,
+.fixed-header td {
+    padding: 8px;
+    text-align: left;
+    border-bottom: 1px solid #ccc;
+    width: 150px;
+    /* Or dynamic widths */
+    box-sizing: border-box;
+}
+
+.fixed-header thead th {
+    position: sticky;
+    top: 0;
+    background: #f8f9fa;
+    z-index: 2;
+}
+
+/* Container for pagination buttons */
+.pagination-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 12px 0;
+    gap: 8px;
+}
+
+/* Button base styles */
+.pagination-controls button {
+    min-width: 40px;
+    /* W3Schools: larger hit areas 👇 :contentReference[oaicite:1]{index=1} */
+    padding: 6px 12px;
+    font-size: 0.9rem;
+    border: 1px solid #ddd;
+    background: #fff;
+    color: #333;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.pagination-controls button:hover:not(:disabled) {
+    background: #f0f0f0;
+}
+
+.pagination-controls button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+/* Current page indicator */
+.pagination-controls .current-page {
+    padding: 6px 12px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: #007bff;
+}

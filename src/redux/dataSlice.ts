@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 interface ColumnFilter {
-    [columnName: string]: string[]; // Selected values for each column
+    [columnName: string]: string[];
 }
 
 interface DataState {
@@ -9,7 +9,7 @@ interface DataState {
     filteredData: any[];
     selectedColumns: string[];
     columnFilters: ColumnFilter;
-    availableFilterOptions: { [columnName: string]: string[] };
+    availableFilterOptions: Record<string, string[]>;
 }
 
 const initialState: DataState = {
@@ -20,149 +20,124 @@ const initialState: DataState = {
     availableFilterOptions: {},
 };
 
-// Helper function to get unique values from a column
-const getUniqueColumnValues = (data: any[], columnName: string): string[] => {
-    const values = data.map(row => String(row[columnName] || '')).filter(Boolean);
-    return [...new Set(values)].sort();
+// Utility: get unique sorted values for a column
+const getUniqueValues = (data: any[], col: string) =>
+    Array.from(new Set(data.map(row => String(row[col] || ''))))
+        .filter(Boolean)
+        .sort();
+
+// Applies given filters to data
+const applyFilters = (data: any[], filters: ColumnFilter) =>
+    data.filter(row =>
+        Object.entries(filters).every(([col, sel]) =>
+            sel.length === 0 || sel.includes(String(row[col] ?? ''))
+        )
+    );
+
+// Computes available options for each column, ignoring its own filter
+const computeOptions = (raw: any[], filters: ColumnFilter) => {
+    if (!raw.length) return {} as Record<string, string[]>;
+    return Object.keys(raw[0]).reduce((opts, col) => {
+        // copy filters and clear this column's filter
+        const fExcl = { ...filters, [col]: [] };
+        const filtered = applyFilters(raw, fExcl);
+        opts[col] = getUniqueValues(filtered, col);
+        return opts;
+    }, {} as Record<string, string[]>);
 };
 
-// Helper function to apply filters
-const applyFilters = (data: any[], filters: ColumnFilter): any[] => {
-    return data.filter(row => {
-        return Object.entries(filters).every(([columnName, selectedValues]) => {
-            if (selectedValues.length === 0) return true; // No filter applied
-            const rowValue = String(row[columnName] || '');
-            return selectedValues.includes(rowValue);
-        });
-    });
+// Builds filteredData based on filters and selected columns
+const buildFilteredData = (
+    raw: any[],
+    filters: ColumnFilter,
+    selected: string[]
+) => {
+    const filtered = applyFilters(raw, filters);
+    if (selected.length) {
+        return filtered.map(row =>
+            selected.reduce((acc, col) => {
+                acc[col] = row[col];
+                return acc;
+            }, {} as any)
+        );
+    }
+    return filtered;
 };
 
 const dataSlice = createSlice({
     name: 'data',
     initialState,
     reducers: {
-        setRawData: (state, action: PayloadAction<any[]>) => {
-            state.rawData = action.payload;
-            state.filteredData = action.payload;
-            
-            // Initialize available filter options for all columns
-            if (action.payload.length > 0) {
-                const columns = Object.keys(action.payload[0]);
-                state.availableFilterOptions = {};
-                columns.forEach(column => {
-                    state.availableFilterOptions[column] = getUniqueColumnValues(action.payload, column);
-                });
-                
-                // Initialize empty filters for all columns
-                state.columnFilters = {};
-                columns.forEach(column => {
-                    state.columnFilters[column] = [];
-                });
-            }
+        setRawData: (state, { payload }: PayloadAction<any[]>) => {
+            state.rawData = payload;
+            state.columnFilters = {};
+            state.selectedColumns = [];
+            state.filteredData = payload;
+            state.availableFilterOptions = computeOptions(payload, {});
         },
-        setSelectedColumns: (state: DataState, action: PayloadAction<string[]>) => {
-            state.selectedColumns = action.payload;
-            // Apply column selection to already filtered data
-            const filteredByValues = applyFilters(state.rawData, state.columnFilters);
-            state.filteredData = filteredByValues.map((row: any) => {
-                const filteredRow: any = {};
-                action.payload.forEach((col: string) => {
-                    filteredRow[col] = row[col];
-                });
-                return filteredRow;
-            });
+
+        setSelectedColumns: (state, { payload }: PayloadAction<string[]>) => {
+            state.selectedColumns = payload;
+            state.filteredData = buildFilteredData(
+                state.rawData,
+                state.columnFilters,
+                payload
+            );
+            state.availableFilterOptions = computeOptions(
+                state.rawData,
+                state.columnFilters
+            );
         },
-        setColumnFilter: (state: DataState, action: PayloadAction<{ columnName: string; selectedValues: string[] }>) => {
-            const { columnName, selectedValues } = action.payload;
-            state.columnFilters[columnName] = selectedValues;
-            
-            // Apply all filters
-            const filteredByValues = applyFilters(state.rawData, state.columnFilters);
-            
-            // Apply column selection if any
-            if (state.selectedColumns.length > 0) {
-                state.filteredData = filteredByValues.map((row: any) => {
-                    const filteredRow: any = {};
-                    state.selectedColumns.forEach((col: string) => {
-                        filteredRow[col] = row[col];
-                    });
-                    return filteredRow;
-                });
-            } else {
-                state.filteredData = filteredByValues;
-            }
-            
-            // Update available filter options based on current filtered data
-            if (filteredByValues.length > 0) {
-                const columns = Object.keys(filteredByValues[0]);
-                columns.forEach((column: string) => {
-                    state.availableFilterOptions[column] = getUniqueColumnValues(filteredByValues, column);
-                });
-            }
+
+        setColumnFilter: (
+            state,
+            { payload }: PayloadAction<{ columnName: string; selectedValues: string[] }>
+        ) => {
+            state.columnFilters[payload.columnName] = payload.selectedValues;
+            state.filteredData = buildFilteredData(
+                state.rawData,
+                state.columnFilters,
+                state.selectedColumns
+            );
+            state.availableFilterOptions = computeOptions(
+                state.rawData,
+                state.columnFilters
+            );
         },
-        clearColumnFilter: (state: DataState, action: PayloadAction<string>) => {
-            const columnName = action.payload;
-            state.columnFilters[columnName] = [];
-            
-            // Reapply all filters
-            const filteredByValues = applyFilters(state.rawData, state.columnFilters);
-            
-            // Apply column selection if any
-            if (state.selectedColumns.length > 0) {
-                state.filteredData = filteredByValues.map((row: any) => {
-                    const filteredRow: any = {};
-                    state.selectedColumns.forEach((col: string) => {
-                        filteredRow[col] = row[col];
-                    });
-                    return filteredRow;
-                });
-            } else {
-                state.filteredData = filteredByValues;
-            }
-            
-            // Update available filter options
-            if (filteredByValues.length > 0) {
-                const columns = Object.keys(filteredByValues[0]);
-                columns.forEach((column: string) => {
-                    state.availableFilterOptions[column] = getUniqueColumnValues(filteredByValues, column);
-                });
-            }
+
+        clearColumnFilter: (state, { payload }: PayloadAction<string>) => {
+            state.columnFilters[payload] = [];
+            state.filteredData = buildFilteredData(
+                state.rawData,
+                state.columnFilters,
+                state.selectedColumns
+            );
+            state.availableFilterOptions = computeOptions(
+                state.rawData,
+                state.columnFilters
+            );
         },
-        clearAllFilters: (state: DataState) => {
-            // Reset all column filters
-            Object.keys(state.columnFilters).forEach((column: string) => {
-                state.columnFilters[column] = [];
-            });
-            
-            // Reset to raw data (or apply column selection if any)
-            if (state.selectedColumns.length > 0) {
-                state.filteredData = state.rawData.map((row: any) => {
-                    const filteredRow: any = {};
-                    state.selectedColumns.forEach((col: string) => {
-                        filteredRow[col] = row[col];
-                    });
-                    return filteredRow;
-                });
-            } else {
-                state.filteredData = state.rawData;
-            }
-            
-            // Reset available filter options to original values
-            if (state.rawData.length > 0) {
-                const columns = Object.keys(state.rawData[0]);
-                columns.forEach((column: string) => {
-                    state.availableFilterOptions[column] = getUniqueColumnValues(state.rawData, column);
-                });
-            }
+
+        clearAllFilters: state => {
+            Object.keys(state.columnFilters).forEach(col => (state.columnFilters[col] = []));
+            state.filteredData = buildFilteredData(
+                state.rawData,
+                state.columnFilters,
+                state.selectedColumns
+            );
+            state.availableFilterOptions = computeOptions(
+                state.rawData,
+                state.columnFilters
+            );
         },
     },
 });
 
-export const { 
-    setRawData, 
-    setSelectedColumns, 
-    setColumnFilter, 
-    clearColumnFilter, 
-    clearAllFilters 
+export const {
+    setRawData,
+    setSelectedColumns,
+    setColumnFilter,
+    clearColumnFilter,
+    clearAllFilters,
 } = dataSlice.actions;
 export default dataSlice.reducer;

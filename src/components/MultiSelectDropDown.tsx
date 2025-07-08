@@ -1,14 +1,15 @@
-<<<<<<< HEAD
-=======
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../redux/store';
-import { AppDispatch } from '../redux/store';
-import { setColumnFilter, clearColumnFilter, clearAllFilters } from '../redux/dataSlice';
+import { RootState, AppDispatch } from '../redux/store';
+import {
+  setColumnFilter,
+  clearColumnFilter,
+  clearAllFilters,
+} from '../redux/dataSlice';
+import './MultiSelectDropDown.css';
 
 interface ColumnDropdownProps {
   columnName: string;
-  availableOptions: string[];
   selectedValues: string[];
   onFilterChange: (selectedValues: string[]) => void;
   onClearFilter: () => void;
@@ -16,122 +17,117 @@ interface ColumnDropdownProps {
 
 const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
   columnName,
-  availableOptions,
   selectedValues,
   onFilterChange,
   onClearFilter,
 }) => {
+  const { rawData, columnFilters } = useSelector((s: RootState) => s.data);
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
 
-  const filteredOptions = useMemo(() => {
-    return availableOptions.filter(option =>
-      option.toLowerCase().includes(searchTerm.toLowerCase())
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const otherFilters = useMemo(() => {
+    const f = { ...columnFilters };
+    f[columnName] = [];
+    return f;
+  }, [columnFilters, columnName]);
+
+  const dataExcl = useMemo(() => {
+    return rawData.filter((row) =>
+      Object.entries(otherFilters).every(([col, sel]) =>
+        sel.length === 0 || sel.includes(String(row[col] ?? ''))
+      )
     );
-  }, [availableOptions, searchTerm]);
+  }, [rawData, otherFilters]);
 
-  const handleOptionToggle = (option: string) => {
-    const newSelectedValues = selectedValues.includes(option)
-      ? selectedValues.filter(val => val !== option)
-      : [...selectedValues, option];
-    
-    onFilterChange(newSelectedValues);
-  };
+  const options = useMemo(() => (
+    [...new Set(dataExcl.map((r) => String(r[columnName] ?? '')))]
+      .filter(Boolean)
+      .sort()
+  ), [dataExcl, columnName]);
 
-  const handleSelectAll = () => {
-    onFilterChange(filteredOptions);
-  };
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {};
+    dataExcl.forEach((r) => {
+      const v = String(r[columnName] ?? '');
+      c[v] = (c[v] || 0) + 1;
+    });
+    return c;
+  }, [dataExcl, columnName]);
 
-  const handleDeselectAll = () => {
-    onFilterChange([]);
+  const filtered = options.filter((opt) =>
+    opt.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const toggle = (opt: string) => {
+    const sel = selectedValues.includes(opt)
+      ? selectedValues.filter((v) => v !== opt)
+      : [...selectedValues, opt];
+    onFilterChange(sel);
   };
 
   return (
-    <div className="relative inline-block text-left mb-2 mr-2">
-      <div>
-        <button
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 min-w-48"
-        >
-          <span className="truncate">
-            {columnName} {selectedValues.length > 0 && `(${selectedValues.length})`}
-          </span>
-          <svg
-            className="-mr-1 ml-2 h-5 w-5"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fillRule="evenodd"
-              d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </button>
-      </div>
+    <div className="msd-dropdown-container" ref={ref}>
+      <button className="msd-button" onClick={() => setIsOpen((o) => !o)}>
+        <span className="msd-button-label">
+          {columnName}{selectedValues.length ? ` (${selectedValues.length})` : ''}
+        </span>
+        <span className={`msd-caret ${isOpen ? 'open' : ''}`} />
+      </button>
 
       {isOpen && (
-        <div className="origin-top-right absolute right-0 mt-2 w-80 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
-          <div className="py-1" role="menu">
-            {/* Search Input */}
-            <div className="px-4 py-2 border-b">
-              <input
-                type="text"
-                placeholder="Search..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                onClick={(e) => e.stopPropagation()}
-              />
-            </div>
+        <div className="msd-menu">
+          <div className="msd-header">
+            <span>{columnName}</span>
+            <span>{options.length} items</span>
+          </div>
 
-            {/* Action Buttons */}
-            <div className="px-4 py-2 border-b flex justify-between">
-              <button
-                onClick={handleSelectAll}
-                className="text-xs text-indigo-600 hover:text-indigo-800"
-              >
-                Select All ({filteredOptions.length})
-              </button>
-              <button
-                onClick={handleDeselectAll}
-                className="text-xs text-gray-600 hover:text-gray-800"
-              >
-                Deselect All
-              </button>
-              <button
-                onClick={onClearFilter}
-                className="text-xs text-red-600 hover:text-red-800"
-              >
-                Clear Filter
-              </button>
-            </div>
+          <div className="msd-search">
+            <i className="msd-search-icon"></i>
+            <input
+              type="search"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
 
-            {/* Options List */}
-            <div className="max-h-60 overflow-y-auto">
-              {filteredOptions.length === 0 ? (
-                <div className="px-4 py-2 text-sm text-gray-500">
-                  No options found
-                </div>
-              ) : (
-                filteredOptions.map((option) => (
-                  <label
-                    key={option}
-                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                  >
+          <div className="msd-actions">
+            <button onClick={() => onFilterChange(filtered)}>Select All</button>
+            <button onClick={() => onFilterChange([])}>Deselect All</button>
+            <button onClick={onClearFilter}>Clear</button>
+          </div>
+
+          <div className="msd-options">
+            {filtered.length === 0 ? (
+              <div className="msd-no-results">No matches</div>
+            ) : (
+              filtered.map((opt) => (
+                <label className="msd-option" key={opt}>
+                  <div className="msd-option-left">
                     <input
                       type="checkbox"
-                      checked={selectedValues.includes(option)}
-                      onChange={() => handleOptionToggle(option)}
-                      className="mr-3 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                      checked={selectedValues.includes(opt)}
+                      onChange={() => toggle(opt)}
                     />
-                    <span className="truncate">{option}</span>
-                  </label>
-                ))
-              )}
-            </div>
+                    <span className="msd-option-label">{opt}</span>
+                  </div>
+                  <span className="msd-option-count">{counts[opt] || 0}</span>
+                </label>
+              ))
+            )}
           </div>
         </div>
       )}
@@ -141,92 +137,56 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
 
 const MultiSelectDropDown: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { filteredData, columnFilters, availableFilterOptions } = useSelector(
-    (state: RootState) => state.data
-  );
+  const { filteredData, columnFilters } = useSelector((s: RootState) => s.data);
 
-  if (filteredData.length === 0) {
-    return (
-      <div className="mb-4 p-4 bg-gray-100 rounded-md">
-        <p className="text-gray-600">Upload a CSV file to start filtering data</p>
-      </div>
-    );
+  if (!filteredData.length) {
+    return <div className="msd-empty"><p>Upload a CSV to start filtering.</p></div>;
   }
 
   const columns = Object.keys(filteredData[0]);
-
-  const handleColumnFilterChange = (columnName: string, selectedValues: string[]) => {
-    dispatch(setColumnFilter({ columnName, selectedValues }));
-  };
-
-  const handleClearColumnFilter = (columnName: string) => {
-    dispatch(clearColumnFilter(columnName));
-  };
-
-  const handleClearAllFilters = () => {
-    dispatch(clearAllFilters());
-  };
-
-  const totalActiveFilters = Object.values(columnFilters).reduce(
-    (total, filters) => total + filters.length,
-    0
-  );
+  const totalFilters = Object.values(columnFilters).reduce((acc, v) => acc + v.length, 0);
 
   return (
-    <div className="mb-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-800">Column Filters</h2>
-        {totalActiveFilters > 0 && (
-          <div className="flex items-center">
-            <span className="text-sm text-gray-600 mr-2">
-              {totalActiveFilters} active filter{totalActiveFilters !== 1 ? 's' : ''}
-            </span>
-            <button
-              onClick={handleClearAllFilters}
-              className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
-            >
-              Clear All Filters
-            </button>
-          </div>
+    <div className="msd-wrapper">
+      <div className="msd-toolbar">
+        <h2>Column Filters</h2>
+        {totalFilters > 0 && (
+          <button
+            className="msd-clearall"
+            onClick={() => dispatch(clearAllFilters())}
+          >
+            Clear All ({totalFilters})
+          </button>
         )}
       </div>
 
-      <div className="flex flex-wrap">
-        {columns.map((columnName) => (
+      <div className="msd-dropdowns">
+        {columns.map((col) => (
           <ColumnDropdown
-            key={columnName}
-            columnName={columnName}
-            availableOptions={availableFilterOptions[columnName] || []}
-            selectedValues={columnFilters[columnName] || []}
-            onFilterChange={(selectedValues) =>
-              handleColumnFilterChange(columnName, selectedValues)
+            key={col}
+            columnName={col}
+            selectedValues={columnFilters[col] || []}
+            onFilterChange={(vals) =>
+              dispatch(setColumnFilter({ columnName: col, selectedValues: vals }))
             }
-            onClearFilter={() => handleClearColumnFilter(columnName)}
+            onClearFilter={() => dispatch(clearColumnFilter(col))}
           />
         ))}
       </div>
 
-      {/* Filter Summary */}
-      <div className="mt-4 p-3 bg-blue-50 rounded-md">
-        <div className="text-sm text-blue-800">
-          <div className="flex items-center justify-between">
-            <span>
-              Showing <strong>{filteredData.length}</strong> rows
-            </span>
-            {totalActiveFilters > 0 && (
-              <span className="text-xs">
-                Active filters: {Object.entries(columnFilters)
-                  .filter(([, values]) => values.length > 0)
-                  .map(([column, values]) => `${column} (${values.length})`)
-                  .join(', ')}
-              </span>
-            )}
-          </div>
-        </div>
+      <div className="msd-summary">
+        <span>Showing {filteredData.length} rows</span>
+        {totalFilters > 0 && (
+          <span>
+            Active: {columns
+              .filter((c) => columnFilters[c]?.length)
+              .map((c) => `${c} (${columnFilters[c].length})`)
+              .join(', ')}
+          </span>
+        )}
       </div>
     </div>
   );
 };
 
 export default MultiSelectDropDown;
->>>>>>> 175c260891ef7309b6b535328c08bcc257b4ab51
