@@ -1,19 +1,17 @@
-// import { useState } from 'react'
-// import reactLogo from './assets/react.svg'
-// import viteLogo from '/vite.svg'
-import React from 'react'
-import './App.css'
+import React from 'react';
+import CSVUploader from './components/CSVUploader';
+import DataTable from './components/DataTable';
+import MultiSelectDropDown from './components/MultiSelectDropDown';
 
-function App() {
-  // const [count, setCount] = useState(0)
-
+const App: React.FC = () => {
   return (
-    <>
-      <div className="bg-blue-500 text-white p-4 rounded">
-        Tailwind is working!
-      </div>
-    </>
-  )
-}
+    <div className="max-w-4xl mx-auto py-10 px-4">
+      <h1 className="text-2xl font-bold mb-6 text-center">CSV Viewer</h1>
+      <CSVUploader />
+      <MultiSelectDropDown />
+      <DataTable />
+    </div>
+  );
+};
 
-export default App
+export default App;
