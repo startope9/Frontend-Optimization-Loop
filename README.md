@@ -1,31 +1,86 @@
-# React + TypeScript + Vite
+## Installation
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+1. **Clone the repository**
 
-Currently, two official plugins are available:
+   ```bash
+   git clone https://github.com/startope9/loop.git
+   cd loop
+   ```
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+2. **Install dependencies**
 
-## Expanding the ESLint configuration
+   ```bash
+   npm install
+   # or
+   yarn install
+   ```
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+3. **Start development server**
 
-- Configure the top-level `parserOptions` property like this:
+   ```bash
+   npm run dev
+   # or
+   yarn dev
+   ```
 
-```js
-export default {
-  // other rules...
-  parserOptions: {
-    ecmaVersion: 'latest',
-    sourceType: 'module',
-    project: ['./tsconfig.json', './tsconfig.node.json'],
-    tsconfigRootDir: __dirname,
-  },
-}
+   * The app will be available at `http://localhost:5173/` by default.
+
+---
+
+## Folder Structure
+
+```
+├── public/
+│   └── index.html
+├── src/
+│   ├── assets/
+│   ├── components/
+│   ├── redux/
+│   ├── types/
+│   ├── App.tsx
+│   ├── main.tsx
+│   └── index.css
+├── .eslintrc.js
+├── vite.config.ts
+├── tsconfig.json
+└── package.json
 ```
 
-- Replace `plugin:@typescript-eslint/recommended` to `plugin:@typescript-eslint/recommended-type-checked` or `plugin:@typescript-eslint/strict-type-checked`
-- Optionally add `plugin:@typescript-eslint/stylistic-type-checked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and add `plugin:react/recommended` & `plugin:react/jsx-runtime` to the `extends` list
-"# loop" 
+---
+
+## Running Tests
+
+We use Jest with React Testing Library:
+
+1. **Ensure testing dependencies are installed**
+
+   ```bash
+   npm install --save-dev jest ts-jest @testing-library/react @testing-library/jest-dom identity-obj-proxy
+   ```
+
+2. **Run tests**
+
+   ```bash
+   npm test
+   # or
+   yarn test
+   ```
+
+---
+
+## Building for Production
+
+```bash
+npm run build
+# or
+yarn build
+```
+
+The production‑ready files will be in `dist/`. To preview them locally:
+
+```bash
+npm run preview
+# or
+yarn preview
+```
+

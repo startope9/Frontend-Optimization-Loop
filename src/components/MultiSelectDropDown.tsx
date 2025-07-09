@@ -1,4 +1,3 @@
-
 import React, {
   useState,
   useMemo,
@@ -19,7 +18,6 @@ import { FixedSizeList as List } from 'react-window';
 import InfiniteLoader from 'react-window-infinite-loader';
 import debounce from 'lodash.debounce';
 import './MultiSelectDropDown.css';
-
 
 import FilterWorker from './FilterWorker.ts?worker';
 
@@ -118,7 +116,11 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
             />
           </div>
 
-          <InfiniteLoader isItemLoaded={isItemLoaded} itemCount={filteredOptions.length} loadMoreItems={loadMoreItems}>
+          <InfiniteLoader
+            isItemLoaded={isItemLoaded}
+            itemCount={filteredOptions.length}
+            loadMoreItems={loadMoreItems}
+          >
             {({
               onItemsRendered,
               ref: listRef,
@@ -156,20 +158,24 @@ const MultiSelectDropDown: React.FC = () => {
   const { rawData, filteredData, columnFilters, selectedColumns, globalSearch } = useSelector((s: RootState) => s.data);
   const filterUpdateStartTimeRef = useRef<number | null>(null);
   const workerRef = useRef<Worker | null>(null);
+  const [noMatch, setNoMatch] = useState(false);
 
   const runWorker = useCallback(() => {
-    if (!rawData.length) return;
+    if (!rawData.length || noMatch) return;
+
     if (!workerRef.current) {
       workerRef.current = new FilterWorker();
     }
 
     workerRef.current.postMessage({ rawData, filters: columnFilters, selectedColumns, globalSearch });
     workerRef.current.onmessage = (e: MessageEvent) => {
+      const results = e.data;
       batch(() => {
-        dispatch(setFilteredResults(e.data));
+        dispatch(setFilteredResults(results));
+        setNoMatch(results.filteredData.length === 0);
       });
     };
-  }, [rawData, columnFilters, selectedColumns, globalSearch, dispatch]);
+  }, [rawData, columnFilters, selectedColumns, globalSearch, dispatch, noMatch]);
 
   const debouncedWorker = useMemo(() => debounce(runWorker, 300), [runWorker]);
 
@@ -179,8 +185,14 @@ const MultiSelectDropDown: React.FC = () => {
   }, [debouncedWorker]);
 
   const handleGlobalSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target.value;
     filterUpdateStartTimeRef.current = performance.now();
-    dispatch(setGlobalSearch(e.target.value));
+    dispatch(setGlobalSearch(input));
+
+    // Allow filter only when search is reduced or corrected
+    if (noMatch && input.length < globalSearch.length) {
+      setNoMatch(false);
+    }
   };
 
   useEffect(() => {
@@ -191,17 +203,17 @@ const MultiSelectDropDown: React.FC = () => {
     }
   }, [filteredData]);
 
-  if (!filteredData.length) {
+  if (!rawData.length) {
     return <div className="msd-empty"><p>Upload a CSV to start filtering.</p></div>;
   }
 
-  const columns = Object.keys(filteredData[0]);
+  const columns = Object.keys(filteredData[0] || {});
   const totalFilters = Object.values(columnFilters).reduce((acc, v) => acc + v.length, 0);
 
   return (
     <div className="msd-wrapper">
       <div className="msd-toolbar">
-        <span>Global Search Across all rows: </span>
+        <span style={{ fontWeight: 500, marginRight: '12px', fontSize: '15px' }}>Global Search Across all rows:</span>
         <input
           type="search"
           placeholder="Global search across all columns..."
@@ -209,42 +221,41 @@ const MultiSelectDropDown: React.FC = () => {
           onChange={handleGlobalSearch}
           className="msd-global-search"
         />
-        {totalFilters > 0 && (
-          <button className="msd-clearall" onClick={() => dispatch(clearAllFilters())}>
-            Clear All ({totalFilters})
-          </button>
-        )}
+
       </div>
 
-      <div className="msd-dropdowns">
-        {columns.map(col => {
-          const values = columnFilters[col] || [];
-          return (
-            <ColumnDropdown
-              key={col}
-              columnName={col}
-              selectedValues={values}
-              onFilterChange={(vals) => {
-                filterUpdateStartTimeRef.current = performance.now();
-                dispatch(setColumnFilter({ columnName: col, selectedValues: vals }));
-              }}
-              onClearFilter={() => dispatch(clearColumnFilter(col))}
-            />
-          );
-        })}
-      </div>
-      {/* 
-      <div className="msd-summary">
-        {totalFilters > 0 && (
-          <span>
-            Active Filters:{' '}
-            {columns
-              .filter((c) => columnFilters[c]?.length)
-              .map((c) => `${c} (${columnFilters[c].length})`)
-              .join(', ')}
-          </span>
-        )}
-      </div> */}
+      {noMatch ? (
+        <div className="msd-empty"><p>No records found for your search.</p></div>
+      ) : (
+        <div className="msd-dropdowns">
+          {columns.map(col => {
+            const values = columnFilters[col] || [];
+            return (
+              <ColumnDropdown
+                key={col}
+                columnName={col}
+                selectedValues={values}
+                onFilterChange={(vals) => {
+                  filterUpdateStartTimeRef.current = performance.now();
+                  dispatch(setColumnFilter({ columnName: col, selectedValues: vals }));
+                }}
+                onClearFilter={() => dispatch(clearColumnFilter(col))}
+              />
+            );
+          })}
+          {totalFilters > 0 && (
+            <div className="msd-clearall-wrapper">
+              <button className="msd-clearall" onClick={() => dispatch(clearAllFilters())}>
+                Clear All ({totalFilters})
+              </button>
+              <div className="msd-clearall-tooltip">
+                Clears only column dropdown selections. Global search remains unchanged.
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
     </div>
   );
 };
