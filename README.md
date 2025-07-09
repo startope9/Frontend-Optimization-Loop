@@ -84,3 +84,8 @@ npm run preview
 yarn preview
 ```
 
+## 🌐 Live Demo
+
+Check out the deployed application here:  
+👉 [https://loop-1ir3.vercel.app/](https://loop-1ir3.vercel.app/)
+
