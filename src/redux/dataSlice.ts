@@ -69,13 +69,25 @@ const computeOptions = (() => {
     if (lastRaw === raw && lastFilters === filtersKey) {
       return lastResult;
     }
-    const filtered = applyFilters(raw, filters);
+    // Short-circuit: if no filters, just count from raw data
+    let source = raw;
+    let hasActive = false;
+    for (const sel of Object.values(filters)) {
+      if (sel.length) {
+        hasActive = true;
+        break;
+      }
+    }
+    if (hasActive) {
+      source = applyFilters(raw, filters);
+    }
     const columns = Object.keys(raw[0]);
     const counts: Record<string, Record<string, number>> = {};
-    for (const col of columns) counts[col] = Object.create(null);
-    for (let i = 0, len = filtered.length; i < len; i++) {
-      const row = filtered[i];
-      for (const col of columns) {
+    for (let c = 0; c < columns.length; c++) counts[columns[c]] = Object.create(null);
+    for (let i = 0, len = source.length; i < len; i++) {
+      const row = source[i];
+      for (let c = 0; c < columns.length; c++) {
+        const col = columns[c];
         const val = row[col];
         if (val !== undefined && val !== null && val !== '') {
           counts[col][val] = (counts[col][val] || 0) + 1;
@@ -83,10 +95,14 @@ const computeOptions = (() => {
       }
     }
     const result: Record<string, { value: string; count: number }[]> = {};
-    for (const col of columns) {
-      result[col] = Object.entries(counts[col])
-        .map(([value, count]) => ({ value, count }))
-        .sort((a, b) => a.value.localeCompare(b.value));
+    for (let c = 0; c < columns.length; c++) {
+      const col = columns[c];
+      const arr = [];
+      for (const value in counts[col]) {
+        arr.push({ value, count: counts[col][value] });
+      }
+      arr.sort((a, b) => a.value.localeCompare(b.value));
+      result[col] = arr;
     }
     lastRaw = raw;
     lastFilters = filtersKey;
