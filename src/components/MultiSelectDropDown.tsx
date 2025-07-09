@@ -141,7 +141,7 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
             />
           </div>
 
-          <div className="msd-actions">
+          {/* <div className="msd-actions">
             <button
               onClick={() =>
                 onFilterChange(filteredOptions.slice(0, loadedCount).map(opt => opt.value))
@@ -151,7 +151,7 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
             </button>
             <button onClick={() => onFilterChange([])}>Deselect All</button>
             <button onClick={onClearFilter}>Clear</button>
-          </div>
+          </div> */}
 
           <InfiniteLoader
             isItemLoaded={isItemLoaded}
