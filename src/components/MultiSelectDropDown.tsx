@@ -1,3 +1,5 @@
+// src/components/MultiSelectDropDown.tsx
+
 import React, {
   useState,
   useMemo,
@@ -5,17 +7,21 @@ import React, {
   useEffect,
   useCallback,
 } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector, useDispatch, batch } from 'react-redux';
 import { RootState, AppDispatch } from '../redux/store';
 import {
   setColumnFilter,
   clearColumnFilter,
   clearAllFilters,
   setFilteredResults,
+  setGlobalSearch,
 } from '../redux/dataSlice';
 import { FixedSizeList as List } from 'react-window';
 import InfiniteLoader from 'react-window-infinite-loader';
+import debounce from 'lodash.debounce';
 import './MultiSelectDropDown.css';
+
+import FilterWorker from './FilterWorker.ts?worker';
 
 interface OptionWithCount {
   value: string;
@@ -35,9 +41,7 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
   columnName,
   selectedValues,
   onFilterChange,
-  // onClearFilter,
 }) => {
-  // Only select what is needed from redux to avoid unnecessary rerenders
   const availableFilterOptions = useSelector((s: RootState) => s.data.availableFilterOptions);
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -53,46 +57,24 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Use availableFilterOptions from redux, which is already value/count
-  const options: OptionWithCount[] = useMemo(() => {
-    return availableFilterOptions[columnName] || [];
-  }, [availableFilterOptions, columnName]);
+  const options = useMemo(() => availableFilterOptions[columnName] || [], [availableFilterOptions, columnName]);
 
-  const filteredOptions = useMemo(
-    () =>
-      options.filter((opt) =>
-        opt.value.toLowerCase().includes(searchTerm.toLowerCase())
-      ),
-    [options, searchTerm]
-  );
+  const filteredOptions = useMemo(() =>
+    options.filter(opt => opt.value.toLowerCase().includes(searchTerm.toLowerCase())), [options, searchTerm]);
 
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE);
-  // Memoize hasNextPage to avoid recalculating on every render
   const hasNextPage = useMemo(() => loadedCount < filteredOptions.length, [loadedCount, filteredOptions.length]);
 
-  // Memoize loadMoreItems to avoid unnecessary re-creations
   const loadMoreItems = useCallback(() => {
     if (!hasNextPage) return;
-    setLoadedCount((count) =>
-      Math.min(count + PAGE_SIZE, filteredOptions.length)
-    );
+    setLoadedCount(count => Math.min(count + PAGE_SIZE, filteredOptions.length));
   }, [hasNextPage, filteredOptions.length]);
 
   const isItemLoaded = useCallback((index: number) => index < loadedCount, [loadedCount]);
 
-  // Memoize Item to avoid unnecessary re-renders
-  const Item = useCallback(({
-    index,
-    style,
-    data,
-  }: {
-    index: number;
-    style: React.CSSProperties;
-    data: OptionWithCount[];
-  }) => {
+  const Item = useCallback(({ index, style, data }: { index: number; style: React.CSSProperties; data: OptionWithCount[] }) => {
     const opt = data[index];
     const checked = selectedValues.includes(opt.value);
-
     const toggleOption = () => {
       const sel = checked
         ? selectedValues.filter((v) => v !== opt.value)
@@ -101,11 +83,7 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
     };
 
     return (
-      <div
-        style={style}
-        className="msd-option-virtualized"
-        onClick={toggleOption}
-      >
+      <div style={style} className="msd-option-virtualized" onClick={toggleOption}>
         <label>
           <input type="checkbox" checked={checked} readOnly />
           <span className="msd-option-value">{opt.value}</span>
@@ -117,7 +95,7 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
 
   return (
     <div className="msd-dropdown-container" ref={ref}>
-      <button className="msd-button" onClick={() => setIsOpen((o) => !o)}>
+      <button className="msd-button" onClick={() => setIsOpen(o => !o)}>
         <span className="msd-button-label">
           {columnName}
           {selectedValues.length ? ` (${selectedValues.length})` : ''}
@@ -132,33 +110,15 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
           </div>
 
           <div className="msd-search">
-            <i className="fa fa-search"></i>
             <input
               type="search"
               placeholder="Search..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
             />
           </div>
 
-          {/* <div className="msd-actions">
-            <button
-              onClick={() =>
-                onFilterChange(filteredOptions.slice(0, loadedCount).map(opt => opt.value))
-              }
-            >
-              Select All
-            </button>
-            <button onClick={() => onFilterChange([])}>Deselect All</button>
-            <button onClick={onClearFilter}>Clear</button>
-          </div> */}
-
-          <InfiniteLoader
-            isItemLoaded={isItemLoaded}
-            itemCount={filteredOptions.length}
-            loadMoreItems={loadMoreItems}
-          >
+          <InfiniteLoader isItemLoaded={isItemLoaded} itemCount={filteredOptions.length} loadMoreItems={loadMoreItems}>
             {({
               onItemsRendered,
               ref: listRef,
@@ -171,7 +131,8 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
               }) => void;
               ref: (ref: any) => void;
             }) => (
-              <List<OptionWithCount>
+
+              <List
                 height={500}
                 itemCount={filteredOptions.length}
                 itemSize={35}
@@ -190,82 +151,81 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
   );
 };
 
-import FilterWorker from './FilterWorker.ts?worker';
-
 const MultiSelectDropDown: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { rawData, filteredData, columnFilters, selectedColumns } = useSelector((s: RootState) => s.data);
-  // const filterUpdateStartTimeRef = useRef<number | null>(null);
+  const { rawData, filteredData, columnFilters, selectedColumns, globalSearch } = useSelector((s: RootState) => s.data);
+  const filterUpdateStartTimeRef = useRef<number | null>(null);
+  const workerRef = useRef<Worker | null>(null);
 
-  // Helper to run the worker and update Redux
   const runWorker = useCallback(() => {
     if (!rawData.length) return;
-    const worker = new FilterWorker();
-    worker.postMessage({ rawData, filters: columnFilters, selectedColumns });
-    worker.onmessage = (e: MessageEvent) => {
-      const { filteredData, availableFilterOptions } = e.data;
-      dispatch(setFilteredResults({ filteredData, availableFilterOptions }));
-      worker.terminate();
+    if (!workerRef.current) {
+      workerRef.current = new FilterWorker();
+    }
+
+    workerRef.current.postMessage({ rawData, filters: columnFilters, selectedColumns, globalSearch });
+    workerRef.current.onmessage = (e: MessageEvent) => {
+      batch(() => {
+        dispatch(setFilteredResults(e.data));
+      });
     };
-  }, [rawData, columnFilters, selectedColumns, dispatch]);
+  }, [rawData, columnFilters, selectedColumns, globalSearch, dispatch]);
 
-  // Run worker when filters or columns change
+  const debouncedWorker = useMemo(() => debounce(runWorker, 300), [runWorker]);
+
   useEffect(() => {
-    runWorker();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawData, columnFilters, selectedColumns]);
+    debouncedWorker();
+    return () => debouncedWorker.cancel();
+  }, [debouncedWorker]);
 
-  // useEffect(() => {
-  //   if (filterUpdateStartTimeRef.current !== null) {
-  //     const duration = performance.now() - filterUpdateStartTimeRef.current;
-  //     console.log(
-  //       `%cFilter to table update took ${duration.toFixed(2)}ms`,
-  //       'color: green; font-weight: bold;'
-  //     );
-  //     filterUpdateStartTimeRef.current = null;
-  //   }
-  // }, [filteredData]);
+  const handleGlobalSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    filterUpdateStartTimeRef.current = performance.now();
+    dispatch(setGlobalSearch(e.target.value));
+  };
+
+  useEffect(() => {
+    if (filterUpdateStartTimeRef.current !== null) {
+      const duration = performance.now() - filterUpdateStartTimeRef.current;
+      console.log(`%cFilter to table update took ${duration.toFixed(2)}ms`, 'color: green; font-weight: bold;');
+      filterUpdateStartTimeRef.current = null;
+    }
+  }, [filteredData]);
 
   if (!filteredData.length) {
-    return (
-      <div className="msd-empty">
-        <p>Upload a CSV to start filtering.</p>
-      </div>
-    );
+    return <div className="msd-empty"><p>Upload a CSV to start filtering.</p></div>;
   }
 
-  const columns = Object.keys(filteredData[0]) as string[];
-  const totalFilters = Object.values(columnFilters).reduce(
-    (acc, v) => acc + v.length,
-    0
-  );
+  const columns = Object.keys(filteredData[0]);
+  const totalFilters = Object.values(columnFilters).reduce((acc, v) => acc + v.length, 0);
 
   return (
     <div className="msd-wrapper">
       <div className="msd-toolbar">
+        <input
+          type="search"
+          placeholder="Global search across all columns..."
+          value={globalSearch}
+          onChange={handleGlobalSearch}
+          className="msd-global-search"
+        />
         {totalFilters > 0 && (
-          <button
-            className="msd-clearall"
-            onClick={() => dispatch(clearAllFilters())}
-          >
+          <button className="msd-clearall" onClick={() => dispatch(clearAllFilters())}>
             Clear All ({totalFilters})
           </button>
         )}
       </div>
 
       <div className="msd-dropdowns">
-        {columns.map((col: string) => {
-          const values = columnFilters[col as keyof typeof columnFilters] || [];
+        {columns.map(col => {
+          const values = columnFilters[col] || [];
           return (
             <ColumnDropdown
               key={col}
               columnName={col}
               selectedValues={values}
               onFilterChange={(vals) => {
-                // filterUpdateStartTimeRef.current = performance.now();
-                dispatch(
-                  setColumnFilter({ columnName: col, selectedValues: vals })
-                );
+                filterUpdateStartTimeRef.current = performance.now();
+                dispatch(setColumnFilter({ columnName: col, selectedValues: vals }));
               }}
               onClearFilter={() => dispatch(clearColumnFilter(col))}
             />
@@ -273,17 +233,17 @@ const MultiSelectDropDown: React.FC = () => {
         })}
       </div>
 
-      {/* <div className="msd-summary">
+      <div className="msd-summary">
         {totalFilters > 0 && (
           <span>
-            Active:{' '}
+            Active Filters:{' '}
             {columns
               .filter((c) => columnFilters[c]?.length)
               .map((c) => `${c} (${columnFilters[c].length})`)
               .join(', ')}
           </span>
         )}
-      </div> */}
+      </div>
     </div>
   );
 };

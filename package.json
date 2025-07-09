@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.8.2",
+    "lodash.debounce": "^4.0.8",
     "multiselect-react-dropdown": "^2.0.25",
     "papaparse": "^5.5.3",
     "react": "^18.2.0",
@@ -26,6 +27,7 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
     "@types/jest": "^30.0.0",
+    "@types/lodash.debounce": "^4.0.9",
     "@types/papaparse": "^5.3.16",
     "@types/react": "^18.2.55",
     "@types/react-dom": "^18.2.19",
