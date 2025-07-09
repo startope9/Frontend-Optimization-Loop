@@ -1,3 +1,10 @@
+## 🌐 Live Demo
+
+Check out the deployed application here:  
+👉 [https://loop-1ir3.vercel.app/](https://loop-1ir3.vercel.app/)
+
+
+
 ## Installation
 
 1. **Clone the repository**
@@ -83,9 +90,4 @@ npm run preview
 # or
 yarn preview
 ```
-
-## 🌐 Live Demo
-
-Check out the deployed application here:  
-👉 [https://loop-1ir3.vercel.app/](https://loop-1ir3.vercel.app/)
 
