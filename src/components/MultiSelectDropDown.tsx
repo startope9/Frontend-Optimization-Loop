@@ -34,7 +34,7 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
   columnName,
   selectedValues,
   onFilterChange,
-  onClearFilter,
+  // onClearFilter,
 }) => {
   // Only select what is needed from redux to avoid unnecessary rerenders
   const availableFilterOptions = useSelector((s: RootState) => s.data.availableFilterOptions);
