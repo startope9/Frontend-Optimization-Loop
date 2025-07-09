@@ -1,7 +1,6 @@
 // src/components/filterWorker.ts
-self.onmessage = (e) => {
-    const { rawData, filters, selectedColumns } = e.data;
 
+export function filterAndComputeOptions(rawData: any[], filters: Record<string, string[]>, selectedColumns: string[] = []) {
     // Filtering logic (copy from your redux/dataSlice.ts)
     const filterSets: Record<string, Set<string>> = {};
     let hasActive = false;
@@ -70,8 +69,14 @@ self.onmessage = (e) => {
             .sort((a, b) => a.value.localeCompare(b.value));
         availableFilterOptions[col] = [...selectedOptions, ...unselectedOptions];
     }
+    return { filteredData, availableFilterOptions };
+}
 
-    // Send result back
+// Worker handler
+self.onmessage = (e) => {
+    const { rawData, filters, selectedColumns } = e.data;
+    const { filteredData, availableFilterOptions } = filterAndComputeOptions(rawData, filters, selectedColumns);
     self.postMessage({ filteredData, availableFilterOptions });
 };
+
 export { };

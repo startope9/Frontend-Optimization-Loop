@@ -40,8 +40,11 @@ const CSVUploader: React.FC = () => {
 
     return (
         <div className="csv-uploader-wrapper">
-            <label className="csv-uploader-label">Upload CSV File</label>
+            <label className="csv-uploader-label" htmlFor="csv-upload-input">
+                Upload CSV File
+            </label>
             <input
+                id="csv-upload-input"
                 type="file"
                 accept=".csv"
                 onChange={handleFileUpload}

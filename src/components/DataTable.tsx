@@ -56,6 +56,8 @@ const CustomDataTable: React.FC = () => {
         dispatch(setPageSize(Number(e.target.value)));
     };
 
+    // Set scroll height to fit 20 rows (assuming ~40px per row)
+    // Adjust the value if your row height is different
     return (
         <div className="table-outer-wrapper">
             <div className="table-center-wrapper">
@@ -64,7 +66,7 @@ const CustomDataTable: React.FC = () => {
                     data={pageRows}
                     customStyles={customStyles}
                     fixedHeader
-                    fixedHeaderScrollHeight="500px"
+                    fixedHeaderScrollHeight="840px" // 20 rows * 40px
                     highlightOnHover
                     striped
                     responsive

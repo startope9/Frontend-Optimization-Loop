@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "jest"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.8.2",
@@ -21,9 +22,14 @@
     "react-window-infinite-loader": "^1.0.10"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/jest": "^30.0.0",
     "@types/papaparse": "^5.3.16",
     "@types/react": "^18.2.55",
     "@types/react-dom": "^18.2.19",
+    "@types/redux-mock-store": "^1.5.0",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
     "@vitejs/plugin-react": "^4.2.1",
@@ -31,8 +37,13 @@
     "eslint": "^8.56.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
+    "identity-obj-proxy": "^3.0.0",
+    "jest": "^30.0.4",
+    "jest-environment-jsdom": "^30.0.4",
     "postcss": "^8.5.6",
+    "redux-mock-store": "^1.5.5",
     "tailwindcss": "^3.4.17",
+    "ts-jest": "^29.4.0",
     "typescript": "^5.2.2",
     "vite": "^7.0.3"
   }
