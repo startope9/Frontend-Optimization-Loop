@@ -26,7 +26,6 @@ const CustomDataTable: React.FC = () => {
         cell: (_row, index) => page * pageSize + index + 1,
         width: '80px',
         grow: 0,
-        center: true,
     };
 
     const columns: TableColumn<RowData>[] = [
@@ -36,7 +35,6 @@ const CustomDataTable: React.FC = () => {
             selector: (row: RowData) => row[header],
             sortable: true,
             wrap: true,
-            center: true,
         })),
     ];
 
