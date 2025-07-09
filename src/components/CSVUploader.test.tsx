@@ -1,5 +1,3 @@
-// src/components/CSVUploader.test.tsx
-
 import { render, fireEvent } from '@testing-library/react';
 import CSVUploader from './CSVUploader';
 import { Provider } from 'react-redux';
@@ -44,7 +42,6 @@ describe('CSVUploader', () => {
         const { getByLabelText } = renderWithStore();
         const input = getByLabelText(/upload csv file/i) as HTMLInputElement;
         fireEvent.change(input, { target: { files: [] } });
-        // This ensures no crash or dispatch — just stability check
         expect(input.files?.length || 0).toBe(0);
     });
 });

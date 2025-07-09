@@ -17,7 +17,6 @@ const CustomDataTable: React.FC = () => {
 
     const headers = Object.keys(filteredData[0]);
 
-    // Calculate paginated rows
     const totalRows = filteredData.length;
     const pageRows = filteredData.slice(page * pageSize, (page + 1) * pageSize);
 
@@ -47,7 +46,6 @@ const CustomDataTable: React.FC = () => {
         },
     };
 
-    // Pagination controls
     const totalPages = Math.ceil(totalRows / pageSize);
     const handlePageChange = (newPage: number) => {
         dispatch(setPage(newPage));
@@ -57,7 +55,6 @@ const CustomDataTable: React.FC = () => {
     };
 
     // Set scroll height to fit 20 rows (assuming ~40px per row)
-    // Adjust the value if your row height is different
     return (
         <div className="table-outer-wrapper">
             <div className="table-center-wrapper">

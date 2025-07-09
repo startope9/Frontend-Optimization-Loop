@@ -1,4 +1,3 @@
-// src/components/MultiSelectDropDown.tsx
 
 import React, {
   useState,
@@ -20,6 +19,7 @@ import { FixedSizeList as List } from 'react-window';
 import InfiniteLoader from 'react-window-infinite-loader';
 import debounce from 'lodash.debounce';
 import './MultiSelectDropDown.css';
+
 
 import FilterWorker from './FilterWorker.ts?worker';
 
@@ -201,6 +201,7 @@ const MultiSelectDropDown: React.FC = () => {
   return (
     <div className="msd-wrapper">
       <div className="msd-toolbar">
+        <span>Global Search Across all rows: </span>
         <input
           type="search"
           placeholder="Global search across all columns..."
@@ -232,7 +233,7 @@ const MultiSelectDropDown: React.FC = () => {
           );
         })}
       </div>
-
+      {/* 
       <div className="msd-summary">
         {totalFilters > 0 && (
           <span>
@@ -243,7 +244,7 @@ const MultiSelectDropDown: React.FC = () => {
               .join(', ')}
           </span>
         )}
-      </div>
+      </div> */}
     </div>
   );
 };

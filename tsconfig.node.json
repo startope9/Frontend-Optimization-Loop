@@ -1,3 +1,4 @@
+// tsconfig.node.json
 {
   "compilerOptions": {
     "composite": true,
@@ -5,6 +6,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true, // ✅ Add this line
     "strict": true
   },
   "include": ["vite.config.ts"]

@@ -1,5 +1,3 @@
-// src/components/DataTable.test.tsx
-
 import { render } from '@testing-library/react';
 import DataTable from './DataTable';
 import { Provider } from 'react-redux';

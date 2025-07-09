@@ -1,5 +1,3 @@
-// src/components/filterWorker.ts
-
 export function filterAndComputeOptions(
   rawData: any[],
   filters: Record<string, string[]>,
