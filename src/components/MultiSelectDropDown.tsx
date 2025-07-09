@@ -202,9 +202,19 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
 
 const MultiSelectDropDown: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { filteredData, columnFilters } = useSelector(
-    (s: RootState) => s.data
-  );
+  const { filteredData, columnFilters } = useSelector((s: RootState) => s.data);
+  const filterUpdateStartTimeRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (filterUpdateStartTimeRef.current !== null) {
+      const duration = performance.now() - filterUpdateStartTimeRef.current;
+      console.log(
+        `%cFilter to table update took ${duration.toFixed(2)}ms`,
+        'color: green; font-weight: bold;'
+      );
+      filterUpdateStartTimeRef.current = null;
+    }
+  }, [filteredData]);
 
   if (!filteredData.length) {
     return (
@@ -241,11 +251,12 @@ const MultiSelectDropDown: React.FC = () => {
               key={col}
               columnName={col}
               selectedValues={values}
-              onFilterChange={(vals) =>
+              onFilterChange={(vals) => {
+                filterUpdateStartTimeRef.current = performance.now();
                 dispatch(
                   setColumnFilter({ columnName: col, selectedValues: vals })
-                )
-              }
+                );
+              }}
               onClearFilter={() => dispatch(clearColumnFilter(col))}
             />
           );
