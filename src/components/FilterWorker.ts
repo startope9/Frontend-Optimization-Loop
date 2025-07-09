@@ -30,23 +30,45 @@ self.onmessage = (e) => {
         });
     }
 
-    // Compute options
+    // Compute options with leave-one-out logic
     const columns = Object.keys(rawData[0] || {});
-    const counts: Record<string, Record<string, number>> = {};
-    for (const col of columns) counts[col] = {};
-    for (const row of filtered) {
-        for (const col of columns) {
-            const val = row[col];
-            if (val !== undefined && val !== null && val !== '') {
-                counts[col][val] = (counts[col][val] || 0) + 1;
-            }
-        }
-    }
     const availableFilterOptions: Record<string, { value: string; count: number }[]> = {};
     for (const col of columns) {
-        availableFilterOptions[col] = Object.entries(counts[col])
-            .map(([value, count]) => ({ value, count }))
+        // Build filters for all columns except this one
+        const otherFilters: Record<string, Set<string>> = {};
+        for (const [k, v] of Object.entries(filters)) {
+            if (k !== col && Array.isArray(v) && v.length) {
+                otherFilters[k] = new Set(v);
+            }
+        }
+        // Filter data with other filters only
+        const filteredForOptions = Object.keys(otherFilters).length === 0
+            ? rawData
+            : rawData.filter((row: any) =>
+                Object.entries(otherFilters).every(
+                    ([k, set]) => set.has(String(row[k] ?? ''))
+                )
+            );
+        // Count values for this column
+        const counts: Record<string, number> = {};
+        for (const row of filteredForOptions) {
+            const val = row[col];
+            if (val !== undefined && val !== null && val !== '') {
+                counts[val] = (counts[val] || 0) + 1;
+            }
+        }
+        // Sort: selected values first (in order of selection), then the rest alphabetically
+        const allOptions = Object.entries(counts)
+            .map(([value, count]) => ({ value, count }));
+        const selected = Array.isArray(filters[col]) ? filters[col] : [];
+        const selectedSet = new Set(selected);
+        const selectedOptions = selected
+            .map((val: string) => allOptions.find(opt => opt.value === val))
+            .filter(Boolean) as { value: string; count: number }[];
+        const unselectedOptions = allOptions
+            .filter(opt => !selectedSet.has(opt.value))
             .sort((a, b) => a.value.localeCompare(b.value));
+        availableFilterOptions[col] = [...selectedOptions, ...unselectedOptions];
     }
 
     // Send result back
