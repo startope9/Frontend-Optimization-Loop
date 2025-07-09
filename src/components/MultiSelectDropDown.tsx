@@ -273,7 +273,7 @@ const MultiSelectDropDown: React.FC = () => {
         })}
       </div>
 
-      <div className="msd-summary">
+      {/* <div className="msd-summary">
         {totalFilters > 0 && (
           <span>
             Active:{' '}
@@ -283,7 +283,7 @@ const MultiSelectDropDown: React.FC = () => {
               .join(', ')}
           </span>
         )}
-      </div>
+      </div> */}
     </div>
   );
 };
