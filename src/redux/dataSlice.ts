@@ -20,33 +20,66 @@ const initialState: DataState = {
   availableFilterOptions: {},
 };
 
-// Utility: get unique sorted values for a column
-const getUniqueValues = (data: any[], col: string) =>
-  Array.from(new Set(data.map(row => String(row[col] || ''))))
-    .filter(Boolean)
-    .sort();
 
-// Applies given filters to data
-const applyFilters = (data: any[], filters: ColumnFilter) =>
-  data.filter(row =>
-    Object.entries(filters).every(([col, sel]) =>
-      sel.length === 0 || sel.includes(String(row[col] ?? ''))
-    )
-  );
-
-// Computes available options for each column, ignoring its own filter
-const computeOptions = (raw: any[], filters: ColumnFilter) => {
-  if (!raw.length) return {} as Record<string, string[]>;
-  return Object.keys(raw[0]).reduce((opts, col) => {
-    // copy filters and clear this column's filter
-    const fExcl = { ...filters, [col]: [] };
-    const filtered = applyFilters(raw, fExcl);
-    opts[col] = getUniqueValues(filtered, col);
-    return opts;
-  }, {} as Record<string, string[]>);
+// Applies given filters to data (fast, avoids unnecessary work)
+const applyFilters = (data: any[], filters: ColumnFilter) => {
+  // Precompute filter sets for O(1) lookup
+  const filterSets: Record<string, Set<string>> = {};
+  let hasActive = false;
+  for (const [col, sel] of Object.entries(filters)) {
+    if (sel.length) {
+      filterSets[col] = new Set(sel);
+      hasActive = true;
+    }
+  }
+  if (!hasActive) return data;
+  return data.filter(row => {
+    for (const col in filterSets) {
+      if (!filterSets[col].has(String(row[col] ?? ''))) return false;
+    }
+    return true;
+  });
 };
 
-// Builds filteredData based on filters and selected columns
+// Computes available options for each column, ignoring its own filter (fast, single pass)
+const computeOptions = (raw: any[], filters: ColumnFilter) => {
+  if (!raw.length) return {} as Record<string, string[]>;
+  const columns = Object.keys(raw[0]);
+  const sets: Record<string, Record<string, true>> = {};
+  for (const col of columns) sets[col] = Object.create(null);
+
+  // Precompute filter sets for all columns
+  const filterSets: Record<string, Set<string>> = {};
+  for (const [col, sel] of Object.entries(filters)) {
+    if (sel.length) filterSets[col] = new Set(sel);
+  }
+
+  for (let i = 0, len = raw.length; i < len; i++) {
+    const row = raw[i];
+    for (const col of columns) {
+      // For each column, ignore its own filter
+      let pass = true;
+      for (const fCol in filterSets) {
+        if (fCol === col) continue;
+        if (!filterSets[fCol].has(String(row[fCol] ?? ''))) {
+          pass = false;
+          break;
+        }
+      }
+      if (pass) {
+        const val = row[col];
+        if (val !== undefined && val !== null && val !== '') sets[col][val] = true;
+      }
+    }
+  }
+  const result: Record<string, string[]> = {};
+  for (const col of columns) {
+    result[col] = Object.keys(sets[col]).sort();
+  }
+  return result;
+};
+
+// Builds filteredData based on filters and selected columns (fast, avoids reduce)
 const buildFilteredData = (
   raw: any[],
   filters: ColumnFilter,
@@ -54,12 +87,14 @@ const buildFilteredData = (
 ) => {
   const filtered = applyFilters(raw, filters);
   if (selected.length) {
-    return filtered.map(row =>
-      selected.reduce((acc, col) => {
-        acc[col] = row[col];
-        return acc;
-      }, {} as any)
-    );
+    return filtered.map(row => {
+      const obj: any = {};
+      for (let i = 0, len = selected.length; i < len; i++) {
+        const col = selected[i];
+        obj[col] = row[col];
+      }
+      return obj;
+    });
   }
   return filtered;
 };
