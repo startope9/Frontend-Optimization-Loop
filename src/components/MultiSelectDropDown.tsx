@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../redux/store';
 import {
@@ -6,7 +6,10 @@ import {
   clearColumnFilter,
   clearAllFilters,
 } from '../redux/dataSlice';
+import { FixedSizeList as List, ListOnItemsRenderedProps } from 'react-window';
+import InfiniteLoader from 'react-window-infinite-loader';
 import './MultiSelectDropDown.css';
+
 
 interface ColumnDropdownProps {
   columnName: string;
@@ -14,6 +17,8 @@ interface ColumnDropdownProps {
   onFilterChange: (selectedValues: string[]) => void;
   onClearFilter: () => void;
 }
+
+const PAGE_SIZE = 100;
 
 const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
   columnName,
@@ -37,98 +42,142 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const otherFilters = useMemo(() => {
-    const f = { ...columnFilters };
-    f[columnName] = [];
-    return f;
-  }, [columnFilters, columnName]);
-
-  const dataExcl = useMemo(() => {
-    return rawData.filter((row) =>
+  // Compute options and counts excluding this column's filter
+  const options = useMemo(() => {
+    const otherFilters = { ...columnFilters, [columnName]: [] };
+    const dataExcl = rawData.filter(row =>
       Object.entries(otherFilters).every(([col, sel]) =>
         sel.length === 0 || sel.includes(String(row[col] ?? ''))
       )
     );
-  }, [rawData, otherFilters]);
-
-  const options = useMemo(() => (
-    [...new Set(dataExcl.map((r) => String(r[columnName] ?? '')))]
-      .filter(Boolean)
-      .sort()
-  ), [dataExcl, columnName]);
+    const uniq = Array.from(
+      new Set(dataExcl.map(r => String(r[columnName] ?? '')))
+    ).filter(Boolean).sort();
+    return uniq;
+  }, [rawData, columnFilters, columnName]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
-    dataExcl.forEach((r) => {
+    rawData.forEach(r => {
       const v = String(r[columnName] ?? '');
       c[v] = (c[v] || 0) + 1;
     });
     return c;
-  }, [dataExcl, columnName]);
+  }, [rawData, columnName]);
 
-  const filtered = options.filter((opt) =>
-    opt.toLowerCase().includes(searchTerm.toLowerCase())
+  // Filtered options by search
+  const filteredOptions = useMemo(
+    () => options.filter(opt =>
+      opt.toLowerCase().includes(searchTerm.toLowerCase())
+    ),
+    [options, searchTerm]
   );
 
-  const toggle = (opt: string) => {
-    const sel = selectedValues.includes(opt)
-      ? selectedValues.filter((v) => v !== opt)
-      : [...selectedValues, opt];
-    onFilterChange(sel);
+  // Infinite loading state
+  const [loadedCount, setLoadedCount] = useState(PAGE_SIZE);
+  const hasNextPage = loadedCount < filteredOptions.length;
+  const isNextPageLoading = false;
+
+  const loadMoreItems = useCallback(() => {
+    if (!hasNextPage) return;
+    setLoadedCount(count => Math.min(count + PAGE_SIZE, filteredOptions.length));
+  }, [hasNextPage, filteredOptions.length]);
+
+  const isItemLoaded = (index: number) => index < loadedCount;
+
+  const Item = ({ index, style }: { index: number; style: React.CSSProperties }) => {
+    if (!isItemLoaded(index)) {
+      return <div style={style}>Loading...</div>;
+    }
+    const opt = filteredOptions[index];
+    const checked = selectedValues.includes(opt);
+
+    const toggleOption = () => {
+      const sel = checked
+        ? selectedValues.filter(v => v !== opt)
+        : [...selectedValues, opt];
+      onFilterChange(sel);
+    };
+
+    return (
+      <div
+        style={style}
+        className="msd-option-virtualized"
+        onClick={toggleOption}
+      >
+        <label>
+          <input
+            type="checkbox"
+            checked={checked}
+            readOnly
+          />
+          <span className="msd-option-value">{opt}</span>
+          <span className="msd-option-count">({counts[opt] || 0})</span>
+        </label>
+      </div>
+    );
   };
+
 
   return (
     <div className="msd-dropdown-container" ref={ref}>
-      <button className="msd-button" onClick={() => setIsOpen((o) => !o)}>
+      <button className="msd-button" onClick={() => setIsOpen(o => !o)}>
         <span className="msd-button-label">
           {columnName}{selectedValues.length ? ` (${selectedValues.length})` : ''}
         </span>
-        <span className={`msd-caret ${isOpen ? 'open' : ''}`} />
+        {/* <span className={`msd-caret ${isOpen ? 'open' : ''}`} /> */}
       </button>
 
       {isOpen && (
-        <div className="msd-menu">
+        <div className="msd-menu-virtual">
           <div className="msd-header">
             <span>{columnName}</span>
-            <span>{options.length} items</span>
+            <span>{filteredOptions.length} items</span>
           </div>
 
           <div className="msd-search">
-            <i className="msd-search-icon"></i>
+            <i className="fa fa-search"></i>
             <input
               type="search"
               placeholder="Search..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
+              onChange={e => setSearchTerm(e.target.value)}
+              onClick={e => e.stopPropagation()}
             />
           </div>
 
           <div className="msd-actions">
-            <button onClick={() => onFilterChange(filtered)}>Select All</button>
+            <button onClick={() => onFilterChange(filteredOptions.slice(0, loadedCount))}>
+              Select All
+            </button>
             <button onClick={() => onFilterChange([])}>Deselect All</button>
             <button onClick={onClearFilter}>Clear</button>
           </div>
 
-          <div className="msd-options">
-            {filtered.length === 0 ? (
-              <div className="msd-no-results">No matches</div>
-            ) : (
-              filtered.map((opt) => (
-                <label className="msd-option" key={opt}>
-                  <div className="msd-option-left">
-                    <input
-                      type="checkbox"
-                      checked={selectedValues.includes(opt)}
-                      onChange={() => toggle(opt)}
-                    />
-                    <span className="msd-option-label">{opt}</span>
-                  </div>
-                  <span className="msd-option-count">{counts[opt] || 0}</span>
-                </label>
-              ))
+          <InfiniteLoader
+            isItemLoaded={isItemLoaded}
+            itemCount={filteredOptions.length}
+            loadMoreItems={loadMoreItems}
+          >
+            {({ onItemsRendered, ref }) => (
+              <List
+                height={300}
+                itemCount={filteredOptions.length}
+                itemSize={35}
+                onItemsRendered={(props: ListOnItemsRenderedProps) => {
+                  onItemsRendered(props);
+                  const { visibleStopIndex } = props;
+                  if (visibleStopIndex + 1 >= loadedCount && hasNextPage) {
+                    loadMoreItems();
+                  }
+                }}
+                ref={ref}
+                width={300}
+              >
+                {Item}
+              </List>
             )}
-          </div>
+          </InfiniteLoader>
         </div>
       )}
     </div>
@@ -137,6 +186,8 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
 
 const MultiSelectDropDown: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
+  const filterStartRef = useRef<number | null>(null); // for execution time
+
   const { filteredData, columnFilters } = useSelector((s: RootState) => s.data);
 
   if (!filteredData.length) {
@@ -146,41 +197,51 @@ const MultiSelectDropDown: React.FC = () => {
   const columns = Object.keys(filteredData[0]);
   const totalFilters = Object.values(columnFilters).reduce((acc, v) => acc + v.length, 0);
 
+  //for execution time
+  useEffect(() => {
+    if (filterStartRef.current !== null) {
+      const duration = performance.now() - filterStartRef.current;
+      console.log(`⏱️ Filter applied in ${Math.round(duration)} ms`);
+      filterStartRef.current = null;
+    }
+  }, [filteredData]);
+
+
   return (
     <div className="msd-wrapper">
       <div className="msd-toolbar">
-        <h2>Column Filters</h2>
+        {/* <h2>Column Filters</h2> */}
         {totalFilters > 0 && (
-          <button
-            className="msd-clearall"
-            onClick={() => dispatch(clearAllFilters())}
-          >
+          <button className="msd-clearall" onClick={() => dispatch(clearAllFilters())}>
             Clear All ({totalFilters})
           </button>
         )}
       </div>
 
       <div className="msd-dropdowns">
-        {columns.map((col) => (
+        {columns.map(col => (
           <ColumnDropdown
             key={col}
             columnName={col}
             selectedValues={columnFilters[col] || []}
-            onFilterChange={(vals) =>
-              dispatch(setColumnFilter({ columnName: col, selectedValues: vals }))
-            }
+            // onFilterChange={vals => dispatch(setColumnFilter({ columnName: col, selectedValues: vals }))}
+            onFilterChange={vals => {
+              filterStartRef.current = performance.now();
+              dispatch(setColumnFilter({ columnName: col, selectedValues: vals }));
+            }}
+
             onClearFilter={() => dispatch(clearColumnFilter(col))}
           />
         ))}
       </div>
 
       <div className="msd-summary">
-        <span>Showing {filteredData.length} rows</span>
+        {/* <span>Showing {filteredData.length} rows</span> */}
         {totalFilters > 0 && (
           <span>
             Active: {columns
-              .filter((c) => columnFilters[c]?.length)
-              .map((c) => `${c} (${columnFilters[c].length})`)
+              .filter(c => columnFilters[c]?.length)
+              .map(c => `${c} (${columnFilters[c].length})`)
               .join(', ')}
           </span>
         )}

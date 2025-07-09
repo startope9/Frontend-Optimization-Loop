@@ -10,20 +10,24 @@ const CSVUploader: React.FC = () => {
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        type CSVRow = {
-            number: number;
-        } & {
-            [key: `mod${string}`]: number;
-        };
 
-
-        Papa.parse<CSVRow>(file, {
+        Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
-            complete: (results: Papa.ParseResult<CSVRow>) => {
-                dispatch(setRawData(results.data));
+            complete: (results: Papa.ParseResult<Record<string, string>>) => {
+                const parsed = results.data.map(row => {
+                    const converted: Record<string, number | string> = {};
+                    for (const key in row) {
+                        const val = row[key];
+                        const num = Number(val);
+                        converted[key] = isNaN(num) ? val : num;
+                    }
+                    return converted;
+                });
+                dispatch(setRawData(parsed));
             },
         });
+
 
     };
 

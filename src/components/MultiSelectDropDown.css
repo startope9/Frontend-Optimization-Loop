@@ -1,225 +1,210 @@
+/* Container & dropdown */
 .msd-dropdown-container {
     position: relative;
     display: inline-block;
-    margin: 0 16px 16px 0;
     font-family: sans-serif;
 }
 
 .msd-button {
-    width: 220px;
-    padding: 10px 14px;
-    background: #fff;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 0.95rem;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    margin: 6px;
+    font-size: 14px;
     color: #333;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    padding: 10px 40px 10px 12px;
+    border: none;
+    border-bottom: 1px solid #ccc;
+    background-color: #fff;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    width: 180px;
     cursor: pointer;
-    transition: border 0.2s ease;
-}
-
-.msd-button:hover,
-.msd-button:focus {
-    border-color: #007bff;
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
-}
-
-.msd-caret {
-    border: solid #666;
-    border-width: 0 1px 1px 0;
-    padding: 4px;
-    transform: rotate(45deg);
-    transition: transform 0.2s;
-}
-
-.msd-caret.open {
-    transform: rotate(-135deg);
-}
-
-.msd-menu {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    width: 260px;
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-    z-index: 1000;
-}
-
-.msd-header,
-.msd-actions {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 14px;
-    background: #f8f9fa;
-    border-bottom: 1px solid #e9ecef;
-}
-
-.msd-header {
-    font-weight: 600;
-    font-size: 0.95rem;
-}
-
-.msd-search {
+    font-family: 'Roboto', sans-serif;
     position: relative;
-    padding: 8px 14px;
-    border-bottom: 1px solid #e9ecef;
+    text-align: left;
 }
 
-.msd-search input {
-    width: fit-content;
-    padding: 8px 8px 8px 36px;
-    /* left padding to make space for icon */
-    font-size: 0.9rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-}
-
-.msd-search input:focus {
-    border-color: #007bff;
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
-    outline: none;
-}
-
-.msd-search-icon {
+/* arrow mimic */
+.msd-button::after {
+    content: '';
     position: absolute;
-    left: 22px;
     top: 50%;
-    width: 16px;
-    height: 16px;
-    transform: translateY(-50%);
-    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='%236b7280' viewBox='0 0 24 24'><path d='M10 2a8 8 0 015.292 13.708l4.647 4.647-1.414 1.414-4.647-4.647A8 8 0 1110 2zm0 2a6 6 0 100 12 6 6 0 000-12z'/></svg>") no-repeat center center;
+    right: 12px;
+    width: 0;
+    height: 0;
     pointer-events: none;
+    transform: translateY(-50%);
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid #333;
 }
 
-
-.msd-actions button {
-    background: none;
-    border: none;
-    color: #007bff;
-    font-size: 0.85rem;
-    cursor: pointer;
-    transition: color 0.2s;
+.msd-button:focus {
+    outline: none;
+    /* border-bottom: 2px solid #4285f4; */
 }
 
-.msd-actions button:hover {
-    color: #0056b3;
-    text-decoration: underline;
-}
-
-.msd-options {
-    max-height: 250px;
-    overflow-y: overlay;
-    scrollbar-width: thin;
-    scrollbar-color: #ccc transparent;
-}
-
-.msd-options::-webkit-scrollbar {
-    width: 6px;
-}
-
-.msd-options::-webkit-scrollbar-thumb {
-    background: #ccc;
-    border-radius: 3px;
-}
-
-.msd-option {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 14px;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.msd-option:hover {
-    background: #f1f3f5;
-}
-
-.msd-option-left {
-    display: flex;
-    align-items: center;
-}
-
-.msd-option input {
-    accent-color: #007bff;
-    margin-right: 10px;
-}
-
-.msd-option-label {
-    font-size: 0.9rem;
-    color: #212529;
-}
-
-.msd-option-count {
-    font-size: 0.8rem;
-    color: #6c757d;
-}
-
-.msd-no-results {
-    padding: 16px;
-    color: #6c757d;
-    text-align: center;
-    font-style: italic;
-}
-
-.msd-empty {
-    margin: 20px;
-    padding: 20px;
-    background: #f8f9fa;
-    border-radius: 4px;
-    text-align: center;
-    color: #555;
-}
-
-.msd-wrapper {
-    margin: 0 0 24px;
-}
-
-.msd-toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-}
-
-.msd-toolbar h2 {
-    margin: 0;
-    font-size: 1.2rem;
-}
-
-.msd-clearall {
-    background: #dc3545;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 4px;
-    color: #fff;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.msd-clearall:hover {
-    background: #c82333;
+.msd-button-label {
+    pointer-events: none;
 }
 
 .msd-dropdowns {
     display: flex;
     flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 20px;
 }
 
-.msd-summary {
-    margin-top: 16px;
-    padding: 12px 14px;
-    background: #e9f7fc;
-    border-radius: 4px;
-    font-size: 0.9rem;
-    color: #004085;
+.msd-menu-virtual {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    width: 300px;
+    max-height: 360px;
+    background: var(--bg, #fff);
+    border: 1px solid var(--border, #ccc);
+    border-radius: var(--radius, 4px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    z-index: 10;
+}
+
+/* Header row */
+.msd-header {
     display: flex;
     justify-content: space-between;
+    padding: 10px 16px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border, #eee);
+}
+
+/* Search */
+.msd-search {
+    position: relative;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border, #eee);
+}
+
+.msd-search input {
+    width: 100%;
+    padding: 8px 32px 8px 10px;
+    border: none;
+    border-bottom: 1px solid var(--border, #ccc);
+    font-size: .95rem;
+    outline: none;
+    transition: border-color .2s;
+}
+
+.msd-search input:focus {
+    border-bottom-color: var(--focus, #007bff);
+}
+
+.msd-search i {
+    position: absolute;
+    top: 50%;
+    right: 18px;
+    transform: translateY(-50%);
+    color: var(--gray, #888);
+    font-size: .9rem;
+    pointer-events: none;
+}
+
+/* Actions */
+.msd-actions {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    padding: 10px 12px;
+    margin-top: 8px;
+    border-top: 1px solid #eee;
+
+    background-color: #fafafa;
+    border-radius: 4px;
+    box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.03);
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+/* Button styling inside actions */
+.msd-actions button {
+    flex: 1 1 auto;
+    min-width: 80px;
+    padding: 6px 10px;
+    font-size: 13px;
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+}
+
+.msd-actions button:hover {
+    background-color: #e8e8e8;
+}
+
+
+/* Option Rows */
+.msd-option-virtualized {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    cursor: pointer !important;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.msd-option-virtualized:nth-child(odd) {
+    background: var(--alt-bg, #fafafa);
+}
+
+.msd-option-virtualized:hover {
+    background: var(--hover-bg, #f5f5f5);
+}
+
+.msd-option-virtualized label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    gap: 10px;
+    font-size: 14px;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.msd-option-virtualized input[type="checkbox"] {
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+.msd-option-virtualized .msd-option-value {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.msd-option-count {
+    flex-shrink: 0;
+    color: #888;
+    font-size: 13px;
+}
+
+.msd-option-virtualized:hover {
+    background: var(--hover-bg, #f0f0f0);
+}
+
+
+.msd-button:hover,
+.msd-button:focus {
+    border-color: var(--focus, #007bff);
 }
