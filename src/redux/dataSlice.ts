@@ -118,17 +118,21 @@ const buildFilteredData = (
   selected: string[]
 ) => {
   const filtered = applyFilters(raw, filters);
-  if (selected.length) {
-    return filtered.map(row => {
-      const obj: any = {};
-      for (let i = 0, len = selected.length; i < len; i++) {
-        const col = selected[i];
-        obj[col] = row[col];
-      }
-      return obj;
-    });
+  if (!selected.length) return filtered;
+  // Fast path: if all columns are selected, return filtered as-is
+  const allCols = Object.keys(filtered[0] || {});
+  if (selected.length === allCols.length && selected.every((c, i) => c === allCols[i])) {
+    return filtered;
   }
-  return filtered;
+  // Otherwise, map to selected columns only
+  return filtered.map(row => {
+    const obj: any = {};
+    for (let i = 0, len = selected.length; i < len; i++) {
+      const col = selected[i];
+      obj[col] = row[col];
+    }
+    return obj;
+  });
 };
 
 const dataSlice = createSlice({
@@ -150,10 +154,7 @@ const dataSlice = createSlice({
         state.columnFilters,
         payload
       );
-      state.availableFilterOptions = computeOptions(
-        state.rawData,
-        state.columnFilters
-      );
+      // Only recompute options if filters changed, not just columns
     },
 
     setColumnFilter: (
