@@ -12,10 +12,8 @@ import {
   clearColumnFilter,
   clearAllFilters,
 } from '../redux/dataSlice';
-import { FixedSizeList as List, ListOnItemsRenderedProps } from 'react-window';
-import InfiniteLoader, {
-  InfiniteLoaderProps,
-} from 'react-window-infinite-loader';
+import { FixedSizeList as List } from 'react-window';
+import InfiniteLoader from 'react-window-infinite-loader';
 import './MultiSelectDropDown.css';
 
 interface ColumnDropdownProps {
@@ -51,13 +49,13 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
   const options = useMemo(() => {
     const otherFilters = { ...columnFilters, [columnName]: [] };
     const dataExcl = rawData.filter((row: Record<string, unknown>) =>
-      Object.entries(otherFilters).every(
-        ([col, sel]) =>
-          sel.length === 0 || sel.includes(String(row[col] ?? ''))
-      )
+      Object.entries(otherFilters).every(([col, selValue]) => {
+        const sel = selValue as string[];
+        return sel.length === 0 || sel.includes(String(row[col] ?? ''));
+      })
     );
     const uniq = Array.from(
-      new Set(dataExcl.map((r: Record<string, unknown>) => String(r[columnName] ?? '')))
+      new Set(dataExcl.map((r) => String(r[columnName] ?? '')))
     )
       .filter(Boolean)
       .sort();
@@ -102,10 +100,7 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
     style: React.CSSProperties;
     data: string[];
   }) => {
-    if (!isItemLoaded(index)) {
-      return <div style={style}>Loading...</div>;
-    }
-    const opt = data[index];;
+    const opt = data[index];
     const checked = selectedValues.includes(opt);
 
     const toggleOption = () => {
@@ -178,7 +173,12 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
               onItemsRendered,
               ref: listRef,
             }: {
-              onItemsRendered: (props: ListOnItemsRenderedProps) => void;
+              onItemsRendered: (props: {
+                overscanStartIndex: number;
+                overscanStopIndex: number;
+                visibleStartIndex: number;
+                visibleStopIndex: number;
+              }) => void;
               ref: (ref: any) => void;
             }) => (
               <List<string>
@@ -186,19 +186,12 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
                 itemCount={filteredOptions.length}
                 itemSize={35}
                 itemData={filteredOptions}
-                onItemsRendered={(props: ListOnItemsRenderedProps) => {
-                  onItemsRendered(props);
-                  const { visibleStopIndex } = props;
-                  if (visibleStopIndex + 1 >= loadedCount && hasNextPage) {
-                    loadMoreItems();
-                  }
-                }}
+                onItemsRendered={onItemsRendered}
                 ref={listRef}
                 width={300}
               >
                 {Item}
               </List>
-
             )}
           </InfiniteLoader>
         </div>
@@ -221,7 +214,7 @@ const MultiSelectDropDown: React.FC = () => {
     );
   }
 
-  const columns = Object.keys(filteredData[0]);
+  const columns = Object.keys(filteredData[0]) as string[];
   const totalFilters = Object.values(columnFilters).reduce(
     (acc, v) => acc + v.length,
     0
@@ -241,19 +234,22 @@ const MultiSelectDropDown: React.FC = () => {
       </div>
 
       <div className="msd-dropdowns">
-        {columns.map((col) => (
-          <ColumnDropdown
-            key={col}
-            columnName={col}
-            selectedValues={columnFilters[col] || []}
-            onFilterChange={(vals) =>
-              dispatch(
-                setColumnFilter({ columnName: col, selectedValues: vals })
-              )
-            }
-            onClearFilter={() => dispatch(clearColumnFilter(col))}
-          />
-        ))}
+        {columns.map((col: string) => {
+          const values = columnFilters[col as keyof typeof columnFilters] || [];
+          return (
+            <ColumnDropdown
+              key={col}
+              columnName={col}
+              selectedValues={values}
+              onFilterChange={(vals) =>
+                dispatch(
+                  setColumnFilter({ columnName: col, selectedValues: vals })
+                )
+              }
+              onClearFilter={() => dispatch(clearColumnFilter(col))}
+            />
+          );
+        })}
       </div>
 
       <div className="msd-summary">
