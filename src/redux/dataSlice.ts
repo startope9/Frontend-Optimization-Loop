@@ -23,50 +23,77 @@ const initialState: DataState = {
 
 
 // Applies given filters to data (fast, avoids unnecessary work)
-const applyFilters = (data: any[], filters: ColumnFilter) => {
-  // Precompute filter sets for O(1) lookup
-  const filterSets: Record<string, Set<string>> = {};
-  let hasActive = false;
-  for (const [col, sel] of Object.entries(filters)) {
-    if (sel.length) {
-      filterSets[col] = new Set(sel);
-      hasActive = true;
+const applyFilters = (() => {
+  let lastData: any[] = [];
+  let lastFilters: string = '';
+  let lastResult: any[] = [];
+  return (data: any[], filters: ColumnFilter) => {
+    // Precompute filter sets for O(1) lookup
+    const filterSets: Record<string, Set<string>> = {};
+    let hasActive = false;
+    for (const [col, sel] of Object.entries(filters)) {
+      if (sel.length) {
+        filterSets[col] = new Set(sel);
+        hasActive = true;
+      }
     }
-  }
-  if (!hasActive) return data;
-  return data.filter(row => {
-    for (const col in filterSets) {
-      if (!filterSets[col].has(String(row[col] ?? ''))) return false;
+    // Short-circuit: if no filters, return data directly
+    if (!hasActive) return data;
+    // Memoization: if data and filters are unchanged, return cached result
+    const filtersKey = JSON.stringify(filters);
+    if (lastData === data && lastFilters === filtersKey) {
+      return lastResult;
     }
-    return true;
-  });
-};
+    const result = data.filter(row => {
+      for (const col in filterSets) {
+        if (!filterSets[col].has(String(row[col] ?? ''))) return false;
+      }
+      return true;
+    });
+    lastData = data;
+    lastFilters = filtersKey;
+    lastResult = result;
+    return result;
+  };
+})();
 
 // Computes available options for each column based on the currently filtered rows, with counts
 // Returns: Record<column, { value: string, count: number }[]>
-const computeOptions = (raw: any[], filters: ColumnFilter) => {
-  if (!raw.length) return {} as Record<string, { value: string; count: number }[]>;
-  const filtered = applyFilters(raw, filters);
-  const columns = Object.keys(raw[0]);
-  const counts: Record<string, Record<string, number>> = {};
-  for (const col of columns) counts[col] = Object.create(null);
-  for (let i = 0, len = filtered.length; i < len; i++) {
-    const row = filtered[i];
-    for (const col of columns) {
-      const val = row[col];
-      if (val !== undefined && val !== null && val !== '') {
-        counts[col][val] = (counts[col][val] || 0) + 1;
+const computeOptions = (() => {
+  let lastRaw: any[] = [];
+  let lastFilters: string = '';
+  let lastResult: Record<string, { value: string; count: number }[]> = {};
+  return (raw: any[], filters: ColumnFilter) => {
+    if (!raw.length) return {} as Record<string, { value: string; count: number }[]>;
+    const filtersKey = JSON.stringify(filters);
+    if (lastRaw === raw && lastFilters === filtersKey) {
+      return lastResult;
+    }
+    const filtered = applyFilters(raw, filters);
+    const columns = Object.keys(raw[0]);
+    const counts: Record<string, Record<string, number>> = {};
+    for (const col of columns) counts[col] = Object.create(null);
+    for (let i = 0, len = filtered.length; i < len; i++) {
+      const row = filtered[i];
+      for (const col of columns) {
+        const val = row[col];
+        if (val !== undefined && val !== null && val !== '') {
+          counts[col][val] = (counts[col][val] || 0) + 1;
+        }
       }
     }
-  }
-  const result: Record<string, { value: string; count: number }[]> = {};
-  for (const col of columns) {
-    result[col] = Object.entries(counts[col])
-      .map(([value, count]) => ({ value, count }))
-      .sort((a, b) => a.value.localeCompare(b.value));
-  }
-  return result;
-};
+    const result: Record<string, { value: string; count: number }[]> = {};
+    for (const col of columns) {
+      result[col] = Object.entries(counts[col])
+        .map(([value, count]) => ({ value, count }))
+        .sort((a, b) => a.value.localeCompare(b.value));
+    }
+    lastRaw = raw;
+    lastFilters = filtersKey;
+    lastResult = result;
+    return result;
+  };
+})();
 
 // Builds filteredData based on filters and selected columns (fast, avoids reduce)
 const buildFilteredData = (
