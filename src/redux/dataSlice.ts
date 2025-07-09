@@ -4,12 +4,13 @@ interface ColumnFilter {
   [columnName: string]: string[];
 }
 
+
 interface DataState {
   rawData: any[];
   filteredData: any[];
   selectedColumns: string[];
   columnFilters: ColumnFilter;
-  availableFilterOptions: Record<string, string[]>;
+  availableFilterOptions: Record<string, { value: string; count: number }[]>;
 }
 
 const initialState: DataState = {
@@ -41,40 +42,28 @@ const applyFilters = (data: any[], filters: ColumnFilter) => {
   });
 };
 
-// Computes available options for each column, ignoring its own filter (fast, single pass)
+// Computes available options for each column based on the currently filtered rows, with counts
+// Returns: Record<column, { value: string, count: number }[]>
 const computeOptions = (raw: any[], filters: ColumnFilter) => {
-  if (!raw.length) return {} as Record<string, string[]>;
+  if (!raw.length) return {} as Record<string, { value: string; count: number }[]>;
+  const filtered = applyFilters(raw, filters);
   const columns = Object.keys(raw[0]);
-  const sets: Record<string, Record<string, true>> = {};
-  for (const col of columns) sets[col] = Object.create(null);
-
-  // Precompute filter sets for all columns
-  const filterSets: Record<string, Set<string>> = {};
-  for (const [col, sel] of Object.entries(filters)) {
-    if (sel.length) filterSets[col] = new Set(sel);
-  }
-
-  for (let i = 0, len = raw.length; i < len; i++) {
-    const row = raw[i];
+  const counts: Record<string, Record<string, number>> = {};
+  for (const col of columns) counts[col] = Object.create(null);
+  for (let i = 0, len = filtered.length; i < len; i++) {
+    const row = filtered[i];
     for (const col of columns) {
-      // For each column, ignore its own filter
-      let pass = true;
-      for (const fCol in filterSets) {
-        if (fCol === col) continue;
-        if (!filterSets[fCol].has(String(row[fCol] ?? ''))) {
-          pass = false;
-          break;
-        }
-      }
-      if (pass) {
-        const val = row[col];
-        if (val !== undefined && val !== null && val !== '') sets[col][val] = true;
+      const val = row[col];
+      if (val !== undefined && val !== null && val !== '') {
+        counts[col][val] = (counts[col][val] || 0) + 1;
       }
     }
   }
-  const result: Record<string, string[]> = {};
+  const result: Record<string, { value: string; count: number }[]> = {};
   for (const col of columns) {
-    result[col] = Object.keys(sets[col]).sort();
+    result[col] = Object.entries(counts[col])
+      .map(([value, count]) => ({ value, count }))
+      .sort((a, b) => a.value.localeCompare(b.value));
   }
   return result;
 };

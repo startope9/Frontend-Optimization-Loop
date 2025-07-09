@@ -11,24 +11,31 @@ const CSVUploader: React.FC = () => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        Papa.parse(file, {
+        Papa.parse<Record<string, string>>(file, {
             header: true,
             skipEmptyLines: true,
-            complete: (results: Papa.ParseResult<Record<string, string>>) => {
-                const parsed = results.data.map(row => {
+            worker: true, // use PapaParse's web worker for large files
+            complete: (results) => {
+                // Use a single pass and avoid creating intermediate objects
+                const parsed = new Array(results.data.length);
+                for (let i = 0; i < results.data.length; i++) {
+                    const row = results.data[i];
                     const converted: Record<string, number | string> = {};
                     for (const key in row) {
                         const val = row[key];
-                        const num = Number(val);
-                        converted[key] = isNaN(num) ? val : num;
+                        // Only try to convert if val is not empty string/null/undefined
+                        if (val !== undefined && val !== null && val !== '') {
+                            const num = Number(val);
+                            converted[key] = isNaN(num) ? val : num;
+                        } else {
+                            converted[key] = '';
+                        }
                     }
-                    return converted;
-                });
+                    parsed[i] = converted;
+                }
                 dispatch(setRawData(parsed));
             },
         });
-
-
     };
 
     return (

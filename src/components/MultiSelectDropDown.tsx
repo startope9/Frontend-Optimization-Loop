@@ -16,6 +16,11 @@ import { FixedSizeList as List } from 'react-window';
 import InfiniteLoader from 'react-window-infinite-loader';
 import './MultiSelectDropDown.css';
 
+interface OptionWithCount {
+  value: string;
+  count: number;
+}
+
 interface ColumnDropdownProps {
   columnName: string;
   selectedValues: string[];
@@ -31,7 +36,8 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
   onFilterChange,
   onClearFilter,
 }) => {
-  const { rawData, columnFilters } = useSelector((s: RootState) => s.data);
+  // Only select what is needed from redux to avoid unnecessary rerenders
+  const availableFilterOptions = useSelector((s: RootState) => s.data.availableFilterOptions);
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const ref = useRef<HTMLDivElement>(null);
@@ -46,42 +52,24 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const options = useMemo(() => {
-    const otherFilters = { ...columnFilters, [columnName]: [] };
-    const dataExcl = rawData.filter((row: Record<string, unknown>) =>
-      Object.entries(otherFilters).every(([col, selValue]) => {
-        const sel = selValue as string[];
-        return sel.length === 0 || sel.includes(String(row[col] ?? ''));
-      })
-    );
-    const uniq = Array.from(
-      new Set(dataExcl.map((r) => String(r[columnName] ?? '')))
-    )
-      .filter(Boolean)
-      .sort();
-    return uniq;
-  }, [rawData, columnFilters, columnName]);
-
-  const counts = useMemo(() => {
-    const c: Record<string, number> = {};
-    rawData.forEach((r: Record<string, unknown>) => {
-      const v = String(r[columnName] ?? '');
-      c[v] = (c[v] || 0) + 1;
-    });
-    return c;
-  }, [rawData, columnName]);
+  // Use availableFilterOptions from redux, which is already value/count
+  const options: OptionWithCount[] = useMemo(() => {
+    return availableFilterOptions[columnName] || [];
+  }, [availableFilterOptions, columnName]);
 
   const filteredOptions = useMemo(
     () =>
-      options.filter((opt: string) =>
-        opt.toLowerCase().includes(searchTerm.toLowerCase())
+      options.filter((opt) =>
+        opt.value.toLowerCase().includes(searchTerm.toLowerCase())
       ),
     [options, searchTerm]
   );
 
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE);
-  const hasNextPage = loadedCount < filteredOptions.length;
+  // Memoize hasNextPage to avoid recalculating on every render
+  const hasNextPage = useMemo(() => loadedCount < filteredOptions.length, [loadedCount, filteredOptions.length]);
 
+  // Memoize loadMoreItems to avoid unnecessary re-creations
   const loadMoreItems = useCallback(() => {
     if (!hasNextPage) return;
     setLoadedCount((count) =>
@@ -89,24 +77,25 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
     );
   }, [hasNextPage, filteredOptions.length]);
 
-  const isItemLoaded = (index: number) => index < loadedCount;
+  const isItemLoaded = useCallback((index: number) => index < loadedCount, [loadedCount]);
 
-  const Item = ({
+  // Memoize Item to avoid unnecessary re-renders
+  const Item = useCallback(({
     index,
     style,
     data,
   }: {
     index: number;
     style: React.CSSProperties;
-    data: string[];
+    data: OptionWithCount[];
   }) => {
     const opt = data[index];
-    const checked = selectedValues.includes(opt);
+    const checked = selectedValues.includes(opt.value);
 
     const toggleOption = () => {
       const sel = checked
-        ? selectedValues.filter((v) => v !== opt)
-        : [...selectedValues, opt];
+        ? selectedValues.filter((v) => v !== opt.value)
+        : [...selectedValues, opt.value];
       onFilterChange(sel);
     };
 
@@ -118,12 +107,12 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
       >
         <label>
           <input type="checkbox" checked={checked} readOnly />
-          <span className="msd-option-value">{opt}</span>
-          <span className="msd-option-count">({counts[opt] || 0})</span>
+          <span className="msd-option-value">{opt.value}</span>
+          <span className="msd-option-count">({opt.count})</span>
         </label>
       </div>
     );
-  };
+  }, [onFilterChange, selectedValues]);
 
   return (
     <div className="msd-dropdown-container" ref={ref}>
@@ -155,7 +144,7 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
           <div className="msd-actions">
             <button
               onClick={() =>
-                onFilterChange(filteredOptions.slice(0, loadedCount))
+                onFilterChange(filteredOptions.slice(0, loadedCount).map(opt => opt.value))
               }
             >
               Select All
@@ -181,7 +170,7 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
               }) => void;
               ref: (ref: any) => void;
             }) => (
-              <List<string>
+              <List<OptionWithCount>
                 height={500}
                 itemCount={filteredOptions.length}
                 itemSize={35}
