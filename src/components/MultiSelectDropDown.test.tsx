@@ -14,7 +14,7 @@ jest.mock('./FilterWorker.ts?worker', () => {
 
 // Mock react-window and react-window-infinite-loader for test environment
 jest.mock('react-window', () => ({
-    FixedSizeList: ({ children, itemCount = 1, itemData, ...props }: any) => (
+    FixedSizeList: ({ children, itemCount = 1, itemData }: any) => (
         <div>
             {Array.from({ length: itemCount }).map((_, index) =>
                 children({ index, style: {}, isScrolling: false, isVisible: true, data: itemData })
