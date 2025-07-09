@@ -216,7 +216,7 @@ const MultiSelectDropDown: React.FC = () => {
         <span style={{ fontWeight: 500, marginRight: '12px', fontSize: '15px' }}>Global Search Across all rows:</span>
         <input
           type="search"
-          placeholder="Global search across all columns..."
+          placeholder="Type to search..."
           value={globalSearch}
           onChange={handleGlobalSearch}
           className="msd-global-search"
