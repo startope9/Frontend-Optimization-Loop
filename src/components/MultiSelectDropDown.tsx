@@ -11,6 +11,7 @@ import {
   setColumnFilter,
   clearColumnFilter,
   clearAllFilters,
+  setFilteredResults,
 } from '../redux/dataSlice';
 import { FixedSizeList as List } from 'react-window';
 import InfiniteLoader from 'react-window-infinite-loader';
@@ -189,10 +190,30 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
   );
 };
 
+import FilterWorker from './FilterWorker.ts?worker';
+
 const MultiSelectDropDown: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { filteredData, columnFilters } = useSelector((s: RootState) => s.data);
+  const { rawData, filteredData, columnFilters, selectedColumns } = useSelector((s: RootState) => s.data);
   const filterUpdateStartTimeRef = useRef<number | null>(null);
+
+  // Helper to run the worker and update Redux
+  const runWorker = useCallback(() => {
+    if (!rawData.length) return;
+    const worker = new FilterWorker();
+    worker.postMessage({ rawData, filters: columnFilters, selectedColumns });
+    worker.onmessage = (e: MessageEvent) => {
+      const { filteredData, availableFilterOptions } = e.data;
+      dispatch(setFilteredResults({ filteredData, availableFilterOptions }));
+      worker.terminate();
+    };
+  }, [rawData, columnFilters, selectedColumns, dispatch]);
+
+  // Run worker when filters or columns change
+  useEffect(() => {
+    runWorker();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawData, columnFilters, selectedColumns]);
 
   useEffect(() => {
     if (filterUpdateStartTimeRef.current !== null) {
