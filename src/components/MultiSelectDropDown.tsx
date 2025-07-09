@@ -35,6 +35,7 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const ref = useRef<HTMLDivElement>(null);
+  const optionsCacheRef = useRef<Record<string, string[]>>({});
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -47,6 +48,11 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
   }, []);
 
   const options = useMemo(() => {
+    const key = `${columnName}|${searchTerm}`;
+    if (optionsCacheRef.current[key]) {
+      return optionsCacheRef.current[key];
+    }
+
     const otherFilters = { ...columnFilters, [columnName]: [] };
     const dataExcl = rawData.filter((row: Record<string, unknown>) =>
       Object.entries(otherFilters).every(([col, selValue]) => {
@@ -54,13 +60,17 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
         return sel.length === 0 || sel.includes(String(row[col] ?? ''));
       })
     );
+
     const uniq = Array.from(
       new Set(dataExcl.map((r) => String(r[columnName] ?? '')))
     )
+      .filter((opt) => opt.toLowerCase().includes(searchTerm.toLowerCase()))
       .filter(Boolean)
       .sort();
+
+    optionsCacheRef.current[key] = uniq;
     return uniq;
-  }, [rawData, columnFilters, columnName]);
+  }, [rawData, columnFilters, columnName, searchTerm]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
@@ -71,23 +81,13 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
     return c;
   }, [rawData, columnName]);
 
-  const filteredOptions = useMemo(
-    () =>
-      options.filter((opt: string) =>
-        opt.toLowerCase().includes(searchTerm.toLowerCase())
-      ),
-    [options, searchTerm]
-  );
-
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE);
-  const hasNextPage = loadedCount < filteredOptions.length;
+  const hasNextPage = loadedCount < options.length;
 
   const loadMoreItems = useCallback(() => {
     if (!hasNextPage) return;
-    setLoadedCount((count) =>
-      Math.min(count + PAGE_SIZE, filteredOptions.length)
-    );
-  }, [hasNextPage, filteredOptions.length]);
+    setLoadedCount((count) => Math.min(count + PAGE_SIZE, options.length));
+  }, [hasNextPage, options.length]);
 
   const isItemLoaded = (index: number) => index < loadedCount;
 
@@ -138,7 +138,7 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
         <div className="msd-menu-virtual">
           <div className="msd-header">
             <span>{columnName}</span>
-            <span>{filteredOptions.length} items</span>
+            <span>{options.length} items</span>
           </div>
 
           <div className="msd-search">
@@ -147,16 +147,17 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
               type="search"
               placeholder="Search..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setLoadedCount(PAGE_SIZE); // Reset on new search
+              }}
               onClick={(e) => e.stopPropagation()}
             />
           </div>
 
           <div className="msd-actions">
             <button
-              onClick={() =>
-                onFilterChange(filteredOptions.slice(0, loadedCount))
-              }
+              onClick={() => onFilterChange(options.slice(0, loadedCount))}
             >
               Select All
             </button>
@@ -166,7 +167,7 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
 
           <InfiniteLoader
             isItemLoaded={isItemLoaded}
-            itemCount={filteredOptions.length}
+            itemCount={options.length}
             loadMoreItems={loadMoreItems}
           >
             {({
@@ -183,9 +184,9 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
             }) => (
               <List<string>
                 height={500}
-                itemCount={filteredOptions.length}
+                itemCount={options.length}
                 itemSize={35}
-                itemData={filteredOptions}
+                itemData={options}
                 onItemsRendered={onItemsRendered}
                 ref={listRef}
                 width={300}
