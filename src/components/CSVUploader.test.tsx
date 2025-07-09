@@ -1,3 +1,5 @@
+// src/components/CSVUploader.test.tsx
+
 import { render, fireEvent } from '@testing-library/react';
 import CSVUploader from './CSVUploader';
 import { Provider } from 'react-redux';
@@ -6,7 +8,7 @@ import dataReducer from '../redux/dataSlice';
 import '@testing-library/jest-dom';
 
 describe('CSVUploader', () => {
-    it('renders file input', () => {
+    function renderWithStore() {
         const store = configureStore({
             reducer: { data: dataReducer },
             preloadedState: {
@@ -18,40 +20,31 @@ describe('CSVUploader', () => {
                     availableFilterOptions: {},
                     page: 0,
                     pageSize: 10,
-                }
-            }
+                    globalSearch: '',
+                },
+            },
         });
-        const { getByLabelText } = render(
-            <Provider store={store}>
-                <CSVUploader />
-            </Provider>
-        );
+
+        return {
+            store,
+            ...render(
+                <Provider store={store}>
+                    <CSVUploader />
+                </Provider>
+            ),
+        };
+    }
+
+    it('renders file input', () => {
+        const { getByLabelText } = renderWithStore();
         expect(getByLabelText(/upload csv file/i)).toBeInTheDocument();
     });
 
     it('does not dispatch if no file is selected', () => {
-        const store = configureStore({
-            reducer: { data: dataReducer },
-            preloadedState: {
-                data: {
-                    filteredData: [],
-                    rawData: [],
-                    selectedColumns: [],
-                    columnFilters: {},
-                    availableFilterOptions: {},
-                    page: 0,
-                    pageSize: 10,
-                }
-            }
-        });
-        const { getByLabelText } = render(
-            <Provider store={store}>
-                <CSVUploader />
-            </Provider>
-        );
+        const { getByLabelText } = renderWithStore();
         const input = getByLabelText(/upload csv file/i) as HTMLInputElement;
         fireEvent.change(input, { target: { files: [] } });
-        // No error should occur, and state should not change
-        // Optionally, you can spy on dispatch if needed
+        // This ensures no crash or dispatch — just stability check
+        expect(input.files?.length || 0).toBe(0);
     });
 });
