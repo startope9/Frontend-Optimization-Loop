@@ -195,7 +195,7 @@ import FilterWorker from './FilterWorker.ts?worker';
 const MultiSelectDropDown: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { rawData, filteredData, columnFilters, selectedColumns } = useSelector((s: RootState) => s.data);
-  const filterUpdateStartTimeRef = useRef<number | null>(null);
+  // const filterUpdateStartTimeRef = useRef<number | null>(null);
 
   // Helper to run the worker and update Redux
   const runWorker = useCallback(() => {
@@ -215,16 +215,16 @@ const MultiSelectDropDown: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawData, columnFilters, selectedColumns]);
 
-  useEffect(() => {
-    if (filterUpdateStartTimeRef.current !== null) {
-      const duration = performance.now() - filterUpdateStartTimeRef.current;
-      console.log(
-        `%cFilter to table update took ${duration.toFixed(2)}ms`,
-        'color: green; font-weight: bold;'
-      );
-      filterUpdateStartTimeRef.current = null;
-    }
-  }, [filteredData]);
+  // useEffect(() => {
+  //   if (filterUpdateStartTimeRef.current !== null) {
+  //     const duration = performance.now() - filterUpdateStartTimeRef.current;
+  //     console.log(
+  //       `%cFilter to table update took ${duration.toFixed(2)}ms`,
+  //       'color: green; font-weight: bold;'
+  //     );
+  //     filterUpdateStartTimeRef.current = null;
+  //   }
+  // }, [filteredData]);
 
   if (!filteredData.length) {
     return (
@@ -262,7 +262,7 @@ const MultiSelectDropDown: React.FC = () => {
               columnName={col}
               selectedValues={values}
               onFilterChange={(vals) => {
-                filterUpdateStartTimeRef.current = performance.now();
+                // filterUpdateStartTimeRef.current = performance.now();
                 dispatch(
                   setColumnFilter({ columnName: col, selectedValues: vals })
                 );
