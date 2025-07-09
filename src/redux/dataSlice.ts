@@ -11,6 +11,8 @@ interface DataState {
   selectedColumns: string[];
   columnFilters: ColumnFilter;
   availableFilterOptions: Record<string, { value: string; count: number }[]>;
+  page: number;
+  pageSize: number;
 }
 
 const initialState: DataState = {
@@ -19,6 +21,8 @@ const initialState: DataState = {
   selectedColumns: [],
   columnFilters: {},
   availableFilterOptions: {},
+  page: 0,
+  pageSize: 50, // default page size, can be changed
 };
 
 
@@ -135,16 +139,16 @@ const buildFilteredData = (
   });
 };
 
+
 const dataSlice = createSlice({
   name: 'data',
   initialState,
   reducers: {
     setRawData: (state, { payload }: PayloadAction<any[]>) => {
       state.rawData = payload;
-      // state.columnFilters = {};
-      // state.selectedColumns = [];
       state.filteredData = payload;
       state.availableFilterOptions = computeOptions(payload, {});
+      state.page = 0;
     },
 
     setSelectedColumns: (state, { payload }: PayloadAction<string[]>) => {
@@ -155,6 +159,7 @@ const dataSlice = createSlice({
         payload
       );
       // Only recompute options if filters changed, not just columns
+      state.page = 0;
     },
 
     setColumnFilter: (
@@ -171,6 +176,7 @@ const dataSlice = createSlice({
         state.rawData,
         state.columnFilters
       );
+      state.page = 0;
     },
 
     clearColumnFilter: (state, { payload }: PayloadAction<string>) => {
@@ -184,6 +190,7 @@ const dataSlice = createSlice({
         state.rawData,
         state.columnFilters
       );
+      state.page = 0;
     },
 
     clearAllFilters: state => {
@@ -197,6 +204,16 @@ const dataSlice = createSlice({
         state.rawData,
         state.columnFilters
       );
+      state.page = 0;
+    },
+
+    setPage: (state, { payload }: PayloadAction<number>) => {
+      state.page = payload;
+    },
+
+    setPageSize: (state, { payload }: PayloadAction<number>) => {
+      state.pageSize = payload;
+      state.page = 0;
     },
   },
 });
@@ -207,5 +224,7 @@ export const {
   setColumnFilter,
   clearColumnFilter,
   clearAllFilters,
+  setPage,
+  setPageSize,
 } = dataSlice.actions;
 export default dataSlice.reducer;
